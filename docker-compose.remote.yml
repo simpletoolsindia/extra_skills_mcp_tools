@@ -20,10 +20,11 @@ services:
   # ============================================
   # FIRECRAWL - Web Scraping
   # Port: 7172
+  # Image: mcp/firecrawl (Docker Hub)
   # Requires: 6 CPU + 12GB RAM
   # ============================================
   firecrawl:
-    image: firecrawl/mcp-server:latest
+    image: mcp/firecrawl:latest
     container_name: firecrawl
     restart: unless-stopped
     ports:
