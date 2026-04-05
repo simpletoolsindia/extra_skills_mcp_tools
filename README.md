@@ -12,8 +12,8 @@
 ```
 | Service | Port |
 |---------|------|
-| SearXNG | 8080 |
-| Firecrawl | 3002 |
+| SearXNG | 7171 |
+| Firecrawl | 7172 |
 
 ### Mac (Local) - `docker-compose.local.yml`
 ```bash
@@ -22,8 +22,8 @@
 | Service | Port |
 |---------|------|
 | MCP Server | 7710 |
-| PostgreSQL | 5432 |
-| Redis | 6379 |
+| PostgreSQL | 7173 |
+| Redis | 7174 |
 
 ---
 
@@ -55,8 +55,8 @@ PI5_IP=192.168.1.100
 ```
 
 MCP connects to:
-- `http://PI5_IP:8080` (SearXNG)
-- `http://PI5_IP:3002` (Firecrawl)
+- `http://PI5_IP:7171` (SearXNG)
+- `http://PI5_IP:7172` (Firecrawl)
 
 ---
 
@@ -91,20 +91,18 @@ docker compose -f docker-compose.local.yml logs -f mcp-server
 ┌─────────────────────────────────┐
 │           PI5 (Remote)            │
 │                                 │
-│  SearXNG  → :8080               │
-│  Firecrawl → :3002              │
-│                                 │
-│  (You manage domain routing)     │
+│  SearXNG  → :7171              │
+│  Firecrawl → :7172             │
 └─────────────────────────────────┘
               │
-              │ http://PI5_IP:8080
+              │ http://PI5_IP:7171
               │
 ┌─────────────────────────────────┐
 │           MAC (Local)            │
 │                                 │
 │  MCP Server → :7710             │
-│  PostgreSQL → :5432             │
-│  Redis      → :6379             │
+│  PostgreSQL → :7173             │
+│  Redis      → :7174             │
 │  Ollama     → localhost:11434   │
 └─────────────────────────────────┘
 ```
