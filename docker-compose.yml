@@ -2,7 +2,7 @@ version: "3.8"
 
 services:
   # ============================================
-  # SEARXNG - Web Search Engine
+  # SEARXNG - Web Search Engine (Self-Hosted)
   # ============================================
   searxng:
     image: searxng/searxng:latest
@@ -15,9 +15,34 @@ services:
     environment:
       - SEARXNG_BASE_URL=https://search.sridharhomelab.in/
     networks:
-      - searxng-network
+      - mcp-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/search?q=test"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ============================================
+  # FIRECRAWL - Web Scraping (Self-Hosted)
+  # ============================================
+  firecrawl:
+    image: firecrawl/mcp-server:latest
+    container_name: firecrawl
+    restart: unless-stopped
+    ports:
+      - "3002:3002"
+    environment:
+      - PORT=3002
+      - HOST=0.0.0.0
+      - LOG_LEVEL=info
+      - MAX_CRAWL_DEPTH=10
+      - CRAWL_TIMEOUT=60000
+    volumes:
+      - ./firecrawl-data:/app/data
+    networks:
+      - mcp-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3002/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -38,7 +63,7 @@ services:
       - DATABASE_URL=sqlite:///litellm.db
       - LITELLM_MASTER_KEY=sk-your-secure-key-here
     networks:
-      - searxng-network
+      - mcp-network
 
   # ============================================
   # POSTGRES - Database
@@ -56,7 +81,7 @@ services:
       - POSTGRES_USER=mcp_user
       - POSTGRES_PASSWORD=your-secure-db-password
     networks:
-      - searxng-network
+      - mcp-network
 
   # ============================================
   # REDIS - Cache
@@ -71,7 +96,7 @@ services:
       - redis-data:/data
     command: redis-server --appendonly yes
     networks:
-      - searxng-network
+      - mcp-network
 
   # ============================================
   # NGINX - Reverse Proxy
@@ -91,14 +116,16 @@ services:
     depends_on:
       - searxng
       - litellm
+      - firecrawl
     networks:
-      - searxng-network
+      - mcp-network
 
 networks:
-  searxng-network:
+  mcp-network:
     driver: bridge
 
 volumes:
   searxng-data:
+  firecrawl-data:
   postgres-data:
   redis-data:
