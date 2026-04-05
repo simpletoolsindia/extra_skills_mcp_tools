@@ -1,50 +1,40 @@
 #!/bin/bash
-# MCP Server - One Command Setup
+# Mac Setup - MCP Server
+# Connects to Pi5 services
 
 set -e
 
-echo "=== MCP Server Setup ==="
+echo "=== Mac MCP Server Setup ==="
 
-# Create SearXNG config directory and files
-mkdir -p searxng-data
-cat > searxng-data/settings.yml << 'EOF'
-use_default_settings: true
-general:
-  instance_name: "MCP Server Search"
-search:
-  safe_search: 0
-  formats:
-    - html
-    - json
-server:
-  secret_key: "mcp-server-key-change-in-production"
-  limiter: false
+# Get Pi5 IP
+echo "Enter your Pi5 IP address (or press Enter for 192.168.1.100):"
+read -r PI5_IP
+PI5_IP=${PI5_IP:-192.168.1.100}
+
+# Save to .env
+cat > .env << EOF
+PI5_IP=$PI5_IP
 EOF
 
-cat > searxng-data/limiter.toml << 'EOF'
-[botdetection]
-trusted_proxies = ['127.0.0.0/8', '::1']
-[botdetection.ip_lists]
-pass_ip = ['127.0.0.0/8', '::1']
-EOF
+echo "Pi5 IP set to: $PI5_IP"
 
-echo "Config created."
-
-# Build and start all containers
-echo "Building and starting containers..."
+# Start MCP server
+echo "Building and starting MCP server..."
 docker-compose up -d --build
 
 echo ""
-echo "=== All Services Running! ==="
+echo "=== Mac MCP Server Running! ==="
 echo ""
-docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+docker ps --format "table {{.Names}}\t{{.Status}}"
 echo ""
 echo "Services:"
-echo "  MCP Server:    mcp-server (container)"
-echo "  SearXNG:       http://localhost:7711"
-echo "  LiteLLM:       http://localhost:7713"
-echo "  PostgreSQL:    localhost:7714"
-echo "  Redis:         localhost:7715"
+echo "  MCP Server:    localhost:7710 (TCP for remote access)"
+echo "  Ollama:       localhost:11434 (Mac local)"
+echo ""
+echo "Pi5 Services:"
+echo "  SearXNG:      $PI5_IP:7711"
+echo "  PostgreSQL:   $PI5_IP:7714"
+echo "  Redis:        $PI5_IP:7715"
 echo ""
 echo "To stop:"
 echo "  docker-compose down"

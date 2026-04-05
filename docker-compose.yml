@@ -1,17 +1,13 @@
-# MCP Unified Server - Complete Stack
-# Run: docker-compose up -d
-# Access: http://localhost:7711 (SearXNG)
-#
-# Remote Access:
-#   - MCP Server: Port 7710 (stdio via TCP)
-#   - SearXNG: Port 7711
-#   - LiteLLM: Port 7713
+# Mac - MCP Server
+# Connects to Pi5 for database services
+# Uses local Ollama for LLM
 
 services:
   # ============================================
-  # MCP SERVER - Your AI Tool Server
-  # Local: docker exec or pipe to Claude Code
-  # Remote: TCP socket on port 7710
+  # MCP SERVER
+  # Connects to:
+  # - Pi5: SearXNG, PostgreSQL, Redis
+  # - Mac: Ollama (localhost:11434)
   # ============================================
   mcp-server:
     build:
@@ -20,85 +16,26 @@ services:
     container_name: mcp-server
     restart: unless-stopped
     ports:
-      - "7710:7710"  # Remote access port
+      - "7710:7710"  # Remote access
     environment:
-      - SEARXNG_BASE_URL=http://searxng:8080
-      - FIRECRAWL_HOST=http://firecrawl:3002
-      - PLAYWRIGHT_HEADLESS=true
+      # Pi5 services (change PI5_IP to your Pi5 IP)
+      - PI5_IP=${PI5_IP:-192.168.1.100}
+      - SEARXNG_BASE_URL=http://${PI5_IP:-192.168.1.100}:7711
+      - POSTGRES_HOST=${PI5_IP:-192.168.1.100}
+      - POSTGRES_PORT=7714
+      - REDIS_HOST=${PI5_IP:-192.168.1.100}
+      - REDIS_PORT=7715
+      # Mac: Ollama
+      - OLLAMA_HOST=host.docker.internal:11434
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      # MCP Server
       - MCP_SERVER_PORT=7710
-    networks:
-      - mcp-network
-
-  # ============================================
-  # SEARXNG - Web Search (Port 7711)
-  # Privacy-respecting search engine
-  # ============================================
-  searxng:
-    image: searxng/searxng:latest
-    container_name: searxng
-    restart: unless-stopped
-    ports:
-      - "7711:8080"
-    volumes:
-      - ./searxng-data:/etc/searxng
-    environment:
-      - SEARXNG_BASE_URL=http://localhost:7711/
-    networks:
-      - mcp-network
-
-  # ============================================
-  # LITELEM - Local LLM Gateway (Port 7713)
-  # Connect to Ollama, vLLM, etc.
-  # ============================================
-  litellm:
-    image: ghcr.io/berriai/litellm:main
-    container_name: litellm
-    restart: unless-stopped
-    ports:
-      - "7713:8000"
-    environment:
-      - DATABASE_URL=sqlite:///litellm.db
-      - LITELLM_MASTER_KEY=sk-local
-    networks:
-      - mcp-network
-
-  # ============================================
-  # POSTGRES - Database (Port 7714)
-  # ============================================
-  postgres:
-    image: postgres:15-alpine
-    container_name: postgres
-    restart: unless-stopped
-    ports:
-      - "7714:5432"
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-    environment:
-      - POSTGRES_DB=mcp_server
-      - POSTGRES_USER=mcp_user
-      - POSTGRES_PASSWORD=postgres
-    networks:
-      - mcp-network
-
-  # ============================================
-  # REDIS - Cache (Port 7715)
-  # ============================================
-  redis:
-    image: redis:7-alpine
-    container_name: redis
-    restart: unless-stopped
-    ports:
-      - "7715:6379"
-    volumes:
-      - redis-data:/data
+      - PLAYWRIGHT_HEADLESS=true
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       - mcp-network
 
 networks:
   mcp-network:
     driver: bridge
-
-volumes:
-  searxng-data:
-  postgres-data:
-  redis-data:

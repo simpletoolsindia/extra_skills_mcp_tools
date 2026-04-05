@@ -1,30 +1,86 @@
 # MCP Unified Server — 86 Tools for Agentic AI
 
-> **100% Self-Hosted** | **Docker Compose** | **Remote Access Ready**
+> **Split Architecture** | Pi5 (Always On) + Mac (On Demand) | Cloudflare Remote Access
 
 ---
 
-## Quick Start
+## Architecture
 
-```bash
-git clone https://github.com/simpletoolsindia/extra_skills_mcp_tools.git
-cd extra_skills_mcp_tools
-./start.sh
+```
+┌─────────────────────────────────────────────────────────┐
+│                     YOUR MAC                             │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐     │
+│  │ MCP Server  │  │   Ollama    │  │  Playwright │     │
+│  │   :7710     │  │   :11434    │  │             │     │
+│  └──────┬──────┘  └─────────────┘  └─────────────┘     │
+│         │                                                │
+└─────────┼──────────────────────────────────────────────┘
+          │ HTTP
+          ▼
+┌─────────────────────────────────────────────────────────┐
+│                      PI5 (Always On)                     │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐     │
+│  │  SearXNG    │  │ PostgreSQL  │  │    Redis    │     │
+│  │   :7711     │  │   :7714     │  │   :7715     │     │
+│  └─────────────┘  └─────────────┘  └─────────────┘     │
+│         │                                                │
+│  ┌─────────────┐                                        │
+│  │ Cloudflare  │ ──────► Remote Access URL              │
+│  │  Tunnel     │                                        │
+│  └─────────────┘                                        │
+└─────────────────────────────────────────────────────────┘
 ```
 
-**That's it!** Everything runs in Docker containers.
+---
+
+## Quick Setup
+
+### 1. Pi5 Setup (Always On)
+
+```bash
+# On Pi5
+git clone https://github.com/simpletoolsindia/extra_skills_mcp_tools.git
+cd extra_skills_mcp_tools
+
+# Optional: Cloudflare Tunnel
+# 1. Create tunnel at dash.cloudflare.com
+# 2. Copy tunnel token
+# 3. echo "CLOUDFLARE_TOKEN=your_token" > .env
+
+./start-pi5.sh
+```
+
+### 2. Mac Setup (Your Machine)
+
+```bash
+# On Mac
+git clone https://github.com/simpletoolsindia/extra_skills_mcp_tools.git
+cd extra_skills_mcp_tools
+
+# Enter Pi5 IP (check Pi5 with: ping pi5.local)
+./start.sh
+# Enter Pi5 IP when asked (e.g., 192.168.1.100)
+```
 
 ---
 
 ## Services
 
+### Pi5 (Always On)
+
+| Service | Port | Local Access | Remote Access |
+|---------|------|--------------|---------------|
+| SearXNG | 7711 | http://pi5.local:7711 | Cloudflare URL |
+| PostgreSQL | 7714 | pi5.local:7714 | Via tunnel |
+| Redis | 7715 | pi5.local:7715 | Via tunnel |
+| Cloudflare | - | - | *.trycloudflare.com |
+
+### Mac (Your Machine)
+
 | Service | Port | Description |
 |---------|------|-------------|
-| **MCP Server** | 7710 | TCP - Remote access |
-| **SearXNG** | 7711 | Web search |
-| **LiteLLM** | 7713 | Local LLM gateway |
-| **PostgreSQL** | 7714 | Database |
-| **Redis** | 7715 | Cache |
+| MCP Server | 7710 | TCP for remote access |
+| Ollama | 11434 | Local LLM (already running) |
 
 ---
 
@@ -33,45 +89,35 @@ cd extra_skills_mcp_tools
 ### Option 1: SSH Tunnel (Recommended)
 
 ```bash
-# From your local machine, tunnel to remote server
-ssh -L 7710:localhost:7710 user@your-server.com
+# Tunnel MCP port to your Mac
+ssh -L 7710:localhost:7710 pi@pi5.local
 
-# Then use MCP normally
+# Then access MCP normally on Mac
 ```
 
-### Option 2: Direct Connection
+### Option 2: Cloudflare Tunnel
+
+Access SearXNG remotely via Cloudflare:
 
 ```bash
-# Connect to remote MCP server
-nc your-server.com 7710
-
-# Send JSON-RPC requests
-{"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}}
+# Configure tunnel at dash.cloudflare.com
+# Point to: http://pi5.local:7711
+# Access at: https://mcp-search.trycloudflare.com
 ```
 
-### Option 3: Claude Code (Remote)
+### Option 3: Claude Code Remote
 
-Add to your local `~/.claude/settings.json`:
+On your local Mac, add to `~/.claude/settings.json`:
 
 ```json
 {
   "mcpServers": {
-    "remote-mcp": {
-      "command": "ssh",
-      "args": ["-L", "7710:localhost:7710", "user@your-server.com", "nc", "localhost", "7710"]
+    "mcp-server": {
+      "command": "docker",
+      "args": ["exec", "-i", "mcp-server", "python", "-m", "mcp_server"]
     }
   }
 }
-```
-
-### Option 4: Docker Exec (Same Machine)
-
-```bash
-# Run commands inside container
-docker exec mcp-server python -m mcp_server
-
-# Or attach to running container
-docker attach mcp-server
 ```
 
 ---
@@ -85,9 +131,9 @@ docker attach mcp-server
 `fetch_web_content`, `scrape_dynamic`, `extract_structured`, `scrape_freedium`, `firecrawl_scrape`, `firecrawl_crawl`, `webclaw_crawl`, `webclaw_extract_article`, `browserbase_browse`, `list_freedium_articles`
 
 ### 📰 News & Research (14)
-- **Hacker News:** `hackernews_top`, `hackernews_new`, `hackernews_best`, `hackernews_ask`, `hackernews_show`, `hackernews_get_comments`, `hackernews_user`
-- **Wikipedia:** `wikipedia_search`, `wikipedia_get_article`, `wikipedia_related`
-- **HuggingFace:** `huggingface_search_models`, `huggingface_search_datasets`, `huggingface_model_info`, `huggingface_trending`
+- **Hacker News:** 7 tools
+- **Wikipedia:** 3 tools
+- **HuggingFace:** 4 tools
 
 ### 🐙 GitHub (6)
 `github_repo`, `github_readme`, `github_issues`, `github_commits`, `github_search_repos`, `github_file_content`
@@ -96,22 +142,18 @@ docker attach mcp-server
 `run_code`, `run_python_snippet`, `test_code_snippet`, `run_command`
 
 ### 📊 Data & Charts (11)
-- **Pandas:** `pandas_create`, `pandas_filter`, `pandas_aggregate`, `pandas_correlation`, `pandas_outliers`
-- **Charts:** `plot_line`, `plot_bar`, `plot_pie`, `plot_scatter`, `plot_histogram`, `generate_chart_spec`
+- **Pandas:** 5 tools
+- **Charts:** 6 tools
 
 ### 📺 YouTube (6)
 `youtube_transcript`, `youtube_transcript_timed`, `youtube_search`, `youtube_video_info`, `youtube_batch_transcribe`, `youtube_summarize`
 
 ### 🧠 Engineering Intelligence (17)
-- **Analysis:** `engi_task_classify`, `engi_repo_scope_find`, `engi_flow_summarize`, `engi_bug_trace`
-- **Planning:** `engi_implementation_plan`, `engi_poc_plan`, `engi_impact_analyze`, `engi_test_select`
-- **Docs:** `engi_doc_context_build`, `engi_doc_update_plan`
-- **Memory:** `engi_memory_checkpoint`, `engi_memory_restore`
-- **Thinking:** `thinking_session_create`, `thinking_step`, `thinking_revoke`, `thinking_summary`, `analyze_problem`
+`engi_task_classify`, `engi_repo_scope_find`, `engi_flow_summarize`, `engi_bug_trace`, `engi_implementation_plan`, `engi_poc_plan`, `engi_impact_analyze`, `engi_test_select`, `engi_doc_context_build`, `engi_doc_update_plan`, `engi_memory_checkpoint`, `engi_memory_restore`, `thinking_session_create`, `thinking_step`, `thinking_revoke`, `thinking_summary`, `analyze_problem`
 
 ### 💾 Files (9)
-- **Operations:** `file_read`, `file_write`, `file_list`, `file_info`, `file_search`
-- **Conversion:** `markitdown_html_to_md`, `markitdown_url_to_md`, `markitdown_file_to_md`, `markitdown_md_to_html`
+- **Operations:** 5 tools
+- **Conversion:** 4 tools
 
 ### 🔧 Research (5)
 `research_start`, `research_add_source`, `research_complete`, `research_report`, `searxng_health`
@@ -120,53 +162,65 @@ docker attach mcp-server
 
 ## Docker Commands
 
-| Command | Description |
-|---------|-------------|
-| `docker-compose up -d` | Start all containers |
-| `docker-compose down` | Stop all containers |
-| `docker-compose logs -f` | View logs |
-| `docker-compose logs -f mcp-server` | View MCP logs |
-| `docker-compose restart` | Restart all |
-| `docker-compose ps` | Check status |
-
----
-
-## Pi5 / Dokploy Deployment
-
+### Pi5
 ```bash
-# Clone and deploy
-git clone https://github.com/simpletoolsindia/extra_skills_mcp_tools.git
-cd extra_skills_mcp_tools
-./start.sh
+# Start
+docker-compose -f docker-compose.pi5.yml up -d
 
-# Access remotely
-ssh -L 7710:localhost:7710 pi@your-pi.local
+# Stop
+docker-compose -f docker-compose.pi5.yml down
+
+# Logs
+docker-compose -f docker-compose.pi5.yml logs -f
+```
+
+### Mac
+```bash
+# Start
+docker-compose up -d
+
+# Stop
+docker-compose down
+
+# Logs
+docker-compose logs -f
 ```
 
 ---
 
-## Examples
+## Environment Variables
 
-### Search the Web
-```
-searxng_search("latest AI news 2024")
-```
-
-### Get YouTube Transcript
-```
-youtube_transcript("https://youtube.com/watch?v=XYZ123")
+### Pi5 (.env)
+```env
+CLOUDFLARE_TOKEN=your_cloudflare_tunnel_token
 ```
 
-### Bug Analysis
+### Mac (.env)
+```env
+PI5_IP=192.168.1.100  # Your Pi5 IP
 ```
-engi_task_classify("Fix login crash", ["auth"])
-engi_bug_trace(["src/auth.py"], "crashes empty password")
-```
+
+---
+
+## Low Power Usage
+
+**Pi5 runs only:**
+- SearXNG (web search)
+- PostgreSQL (database)
+- Redis (cache)
+- Cloudflare tunnel
+
+**Mac runs:**
+- MCP Server (when needed)
+- Ollama (your LLM)
+- Playwright (browser)
+
+This means Pi5 uses minimal power (~5W) and Mac handles heavy workloads only when needed.
 
 ---
 
 ## License
 
-MIT - Free for personal and commercial use.
+MIT
 
 ⭐ **Star on GitHub!**
