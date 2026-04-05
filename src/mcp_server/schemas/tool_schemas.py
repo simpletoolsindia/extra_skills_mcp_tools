@@ -260,42 +260,6 @@ TOOL_DEFINITIONS = [
         },
     },
     {
-        "name": "wikipedia_search",
-        "description": "Search Wikipedia for articles.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "query": {"type": "string", "description": "Search query"},
-                "limit": {"type": "integer", "description": "Max results", "default": 10},
-            },
-            "required": ["query"],
-        },
-    },
-    {
-        "name": "wikipedia_get_article",
-        "description": "Get Wikipedia article content.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "title": {"type": "string", "description": "Article title"},
-                "extract_length": {"type": "integer", "description": "Max characters", "default": 2000},
-            },
-            "required": ["title"],
-        },
-    },
-    {
-        "name": "wikipedia_related",
-        "description": "Get articles related to a Wikipedia article.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "title": {"type": "string", "description": "Article title"},
-                "limit": {"type": "integer", "description": "Max results", "default": 10},
-            },
-            "required": ["title"],
-        },
-    },
-    {
         "name": "huggingface_search_models",
         "description": "Search Hugging Face models.",
         "inputSchema": {

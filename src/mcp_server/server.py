@@ -25,7 +25,6 @@ from .tools import freedium_scrape
 from .tools import code_sandbox
 from .tools import searxng
 from .tools import hackernews
-from .tools import wikipedia
 from .tools import github
 from .tools import file_system
 from .tools import markitdown
@@ -74,11 +73,6 @@ TOOL_CALLABLES: dict[str, Any] = {
     "hackernews_show": hackernews.get_show_hn,
     "hackernews_get_comments": hackernews.get_story_comments,
     "hackernews_user": hackernews.get_user,
-
-    # === Wikipedia ===
-    "wikipedia_search": wikipedia.search_wikipedia,
-    "wikipedia_get_article": wikipedia.get_article,
-    "wikipedia_related": wikipedia.get_related_articles,
 
     # === Hugging Face ===
     "huggingface_search_models": huggingface.search_models,

@@ -2,24 +2,31 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# Install system deps for playwright
+# Install system deps for playwright and SSL certificates
 RUN apt-get update && apt-get install -y \
     wget \
     gnupg \
     curl \
     netcat-openbsd \
-    && rm -rf /var/lib/apt/lists/*
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && update-ca-certificates
 
-# Copy and install Python dependencies
+# Copy source and install
+COPY src ./src
 COPY pyproject.toml .
+
+# Install certifi for SSL certificate handling
+RUN pip install --no-cache-dir certifi
+
+# Fix package name for pip
 RUN pip install --no-cache-dir -e .
 
 # Install Playwright browsers
 RUN playwright install chromium --with-deps
 
 ENV PYTHONUNBUFFERED=1
-ENV SEARXNG_BASE_URL=http://searxng:8080
-ENV MCP_SERVER_PORT=7710
+ENV PLAYWRIGHT_HEADLESS=true
 
-# Run MCP server in TCP mode (for remote access)
-CMD ["python", "-m", "mcp_server"]
+# Run MCP server
+CMD ["python", "-c", "from mcp_server.server import run; run()"]

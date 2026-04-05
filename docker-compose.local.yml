@@ -18,9 +18,8 @@ services:
     ports:
       - "7710:7710"
     environment:
-      # Remote (Pi5) - SearXNG only
-      - PI5_IP=${PI5_IP:-192.168.1.100}
-      - SEARXNG_BASE_URL=http://${PI5_IP:-192.168.1.100}:7171
+      # Remote (Pi5) - SearXNG
+      - SEARXNG_BASE_URL=https://search.sridharhomelab.in
       # Local Ollama (host machine)
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
       # Local database
@@ -37,6 +36,9 @@ services:
       # MCP
       - MCP_SERVER_PORT=7710
       - PLAYWRIGHT_HEADLESS=true
+      # SSL certificates
+      - SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+      - REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt
     depends_on:
       - postgres
       - redis
