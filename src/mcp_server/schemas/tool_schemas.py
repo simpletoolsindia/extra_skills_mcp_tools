@@ -904,4 +904,163 @@ TOOL_DEFINITIONS = [
             "required": ["transcript"],
         },
     },
+    # ===== ENGINEERING INTELLIGENCE (engi-mcp) =====
+    {
+        "name": "engi_task_classify",
+        "description": "Classify engineering task type (bug, feature, refactor, etc.) with confidence score.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "task": {"type": "string", "description": "Task description"},
+                "keywords": {"type": "array", "items": {"type": "string"}, "description": "Context keywords"},
+            },
+            "required": ["task"],
+        },
+    },
+    {
+        "name": "engi_repo_scope_find",
+        "description": "Find minimum relevant files for a task using repository index.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "repo_path": {"type": "string", "description": "Repository path"},
+                "task": {"type": "string", "description": "Task description"},
+                "task_type": {"type": "string", "enum": ["analysis", "feature", "bug", "poc", "documentation", "mixed"]},
+                "limit": {"type": "integer", "description": "Max results", "default": 20},
+            },
+            "required": ["repo_path", "task"],
+        },
+    },
+    {
+        "name": "engi_flow_summarize",
+        "description": "Get compact execution flow description (not raw code).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "entry_point": {"type": "string", "description": "Main file or function"},
+                "scope": {"type": "array", "items": {"type": "string"}, "description": "Files to include"},
+                "verbosity": {"type": "string", "enum": ["minimal", "standard", "detailed"], "description": "Detail level"},
+            },
+            "required": ["entry_point"],
+        },
+    },
+    {
+        "name": "engi_bug_trace",
+        "description": "Pinpoint likely bug causes from symptom description.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "scope": {"type": "array", "items": {"type": "string"}, "description": "Files to investigate"},
+                "symptom": {"type": "string", "description": "Bug description"},
+            },
+            "required": ["scope", "symptom"],
+        },
+    },
+    {
+        "name": "engi_implementation_plan",
+        "description": "Generate step-by-step implementation plan with edit targets and risk notes.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "task": {"type": "string", "description": "Task description"},
+                "scope": {"type": "array", "items": {"type": "string"}, "description": "Files to modify"},
+                "task_type": {"type": "string", "enum": ["bug", "feature", "refactor"], "description": "Task type"},
+                "existing_patterns": {"type": "array", "items": {"type": "string"}, "description": "Patterns to follow"},
+            },
+            "required": ["task", "scope"],
+        },
+    },
+    {
+        "name": "engi_poc_plan",
+        "description": "Scaffold minimum viable proof-of-concept.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "goal": {"type": "string", "description": "POC goal"},
+                "existing_code": {"type": "array", "items": {"type": "string"}, "description": "Code to leverage"},
+                "constraints": {"type": "array", "items": {"type": "string"}, "description": "Known constraints"},
+            },
+            "required": ["goal"],
+        },
+    },
+    {
+        "name": "engi_impact_analyze",
+        "description": "Estimate blast radius before making edits.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "scope": {"type": "array", "items": {"type": "string"}, "description": "Files being changed"},
+                "change_type": {"type": "string", "enum": ["add", "modify", "delete"]},
+            },
+            "required": ["scope", "change_type"],
+        },
+    },
+    {
+        "name": "engi_test_select",
+        "description": "Return minimum test set for changed files.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "scope": {"type": "array", "items": {"type": "string"}, "description": "Changed files"},
+                "change_type": {"type": "string", "enum": ["add", "modify", "delete"]},
+            },
+            "required": ["scope", "change_type"],
+        },
+    },
+    {
+        "name": "engi_doc_context_build",
+        "description": "Build compact context for documentation (targeted at audience).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "audience": {"type": "string", "enum": ["junior", "senior", "pm", "qa", "api"]},
+                "changed_files": {"type": "array", "items": {"type": "string"}, "description": "Changed files"},
+                "feature": {"type": "string", "description": "Feature being documented"},
+            },
+            "required": ["audience", "changed_files"],
+        },
+    },
+    {
+        "name": "engi_doc_update_plan",
+        "description": "Identify which docs need updating after code changes.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "changed_files": {"type": "array", "items": {"type": "string"}, "description": "Changed files"},
+                "existing_docs": {"type": "array", "items": {"type": "string"}, "description": "Existing docs"},
+            },
+            "required": ["changed_files"],
+        },
+    },
+    {
+        "name": "engi_memory_checkpoint",
+        "description": "Save task state for multi-session continuity.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "task_id": {"type": "string", "description": "Unique task ID"},
+                "files": {"type": "array", "items": {"type": "string"}, "description": "Files in scope"},
+                "modules": {"type": "array", "items": {"type": "string"}, "description": "Modules in scope"},
+                "symbols": {"type": "array", "items": {"type": "string"}, "description": "Symbols in scope"},
+                "notes": {"type": "string", "description": "Additional notes"},
+                "pending_docs": {"type": "array", "items": {"type": "string"}, "description": "Pending docs"},
+                "pending_validations": {"type": "array", "items": {"type": "string"}, "description": "Pending validations"},
+                "decisions": {"type": "array", "items": {"type": "object"}, "description": "Decisions made"},
+                "risks": {"type": "array", "items": {"type": "string"}, "description": "Identified risks"},
+                "task_type": {"type": "string", "enum": ["analysis", "feature", "bug", "poc", "documentation", "mixed"]},
+            },
+            "required": ["task_id", "files"],
+        },
+    },
+    {
+        "name": "engi_memory_restore",
+        "description": "Restore previously saved checkpoint by taskId.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "task_id": {"type": "string", "description": "Task ID to restore"},
+            },
+            "required": ["task_id"],
+        },
+    },
 ]

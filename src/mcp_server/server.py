@@ -38,6 +38,7 @@ from .tools import webclaw
 from .tools import browserbase
 from .tools import youtube_transcript
 from .tools import gpt_researcher
+from .tools import engi_intelligence
 
 logging.basicConfig(level=logging.WARNING)
 log = logging.getLogger("mcp_server")
@@ -147,6 +148,20 @@ TOOL_CALLABLES: dict[str, Any] = {
     "youtube_video_info": youtube_transcript.get_video_info,
     "youtube_batch_transcribe": youtube_transcript.batch_transcribe,
     "youtube_summarize": youtube_transcript.summarize_transcript,
+
+    # === Engineering Intelligence (engi-mcp) ===
+    "engi_task_classify": engi_intelligence.task_classify,
+    "engi_repo_scope_find": engi_intelligence.repo_scope_find,
+    "engi_flow_summarize": engi_intelligence.flow_summarize,
+    "engi_bug_trace": engi_intelligence.bug_trace_compact,
+    "engi_implementation_plan": engi_intelligence.implementation_plan,
+    "engi_poc_plan": engi_intelligence.poc_plan,
+    "engi_impact_analyze": engi_intelligence.impact_analyze,
+    "engi_test_select": engi_intelligence.test_select,
+    "engi_doc_context_build": engi_intelligence.doc_context_build,
+    "engi_doc_update_plan": engi_intelligence.doc_update_plan,
+    "engi_memory_checkpoint": engi_intelligence.memory_checkpoint,
+    "engi_memory_restore": engi_intelligence.memory_restore,
 
     # === System ===
     "run_command": run_command.run_command,
