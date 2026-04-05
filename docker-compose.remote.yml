@@ -1,48 +1,35 @@
 # Pi5 / Remote Server - Always On Services
 # Run: docker compose -f docker-compose.remote.yml up -d
+#
+# Services:
+# - SearXNG (port 8080)
+# - Firecrawl (port 3002)
 
 services:
   # ============================================
-  # SEARXNG - Web Search (Port 7711)
-  # Privacy-respecting search engine
+  # SEARXNG - Web Search
   # ============================================
   searxng:
     image: searxng/searxng:latest
     container_name: searxng
     restart: unless-stopped
     ports:
-      - "7711:8080"
+      - "8080:8080"
     volumes:
       - ./searxng-data:/etc/searxng
-    networks:
-      - remote-network
 
   # ============================================
-  # FIRECRAWL - Web Scraping (Port 7712)
-  # Intelligent content extraction
+  # FIRECRAWL - Web Scraping
   # Requires: 6 CPU + 12GB RAM
-  # Image: firecrawl/mcp-server
   # ============================================
   firecrawl:
     image: firecrawl/mcp-server:latest
     container_name: firecrawl
     restart: unless-stopped
     ports:
-      - "7712:3002"
+      - "3002:3002"
     volumes:
       - ./firecrawl-data:/app/data
     environment:
       - PORT=3002
       - HOST=0.0.0.0
-      - USE_DB_AUTHENTICATION=false
-      - LOG_LEVEL=info
-    networks:
-      - remote-network
-
-networks:
-  remote-network:
-    driver: bridge
-
-volumes:
-  searxng-data:
-  firecrawl-data:

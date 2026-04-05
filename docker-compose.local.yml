@@ -1,13 +1,14 @@
 # Mac / Local Machine - On Demand Services
 # Run: docker compose -f docker-compose.local.yml up -d
+#
+# Connects to remote services at:
+# - http://YOUR_PI5_IP:8080 (SearXNG)
+# - http://YOUR_PI5_IP:3002 (Firecrawl)
 
 services:
   # ============================================
-  # MCP SERVER (Port 7710)
+  # MCP SERVER
   # 86 tools for AI workflows
-  # Connects to:
-  # - Remote: SearXNG, Firecrawl
-  # - Local: Ollama (host), PostgreSQL, Redis
   # ============================================
   mcp-server:
     build:
@@ -18,18 +19,20 @@ services:
     ports:
       - "7710:7710"
     environment:
-      # Remote (Pi5) - Update REMOTE_IP
-      - REMOTE_IP=${REMOTE_IP:-192.168.1.100}
-      - SEARXNG_BASE_URL=http://${REMOTE_IP:-192.168.1.100}:7711
-      - FIRECRAWL_HOST=http://${REMOTE_IP:-192.168.1.100}:7712
-      # Local Ollama (on host machine)
+      # UPDATE THIS: Your Pi5 IP address
+      - PI5_IP=${PI5_IP:-192.168.1.100}
+      # Remote services (Pi5)
+      - SEARXNG_BASE_URL=http://${PI5_IP:-192.168.1.100}:8080
+      - FIRECRAWL_HOST=http://${PI5_IP:-192.168.1.100}:3002
+      # Local Ollama (host machine)
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
-      # Local services
+      # Local database
       - POSTGRES_HOST=postgres
       - POSTGRES_PORT=5432
       - POSTGRES_DB=mcp_server
       - POSTGRES_USER=mcp_user
       - POSTGRES_PASSWORD=postgres
+      # Local cache
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       # MCP
@@ -44,8 +47,7 @@ services:
       - local-network
 
   # ============================================
-  # POSTGRESQL (Port 5432)
-  # Database
+  # POSTGRESQL - Database
   # ============================================
   postgres:
     image: postgres:15-alpine
@@ -63,8 +65,7 @@ services:
       - local-network
 
   # ============================================
-  # REDIS (Port 6379)
-  # Cache
+  # REDIS - Cache
   # ============================================
   redis:
     image: redis:7-alpine

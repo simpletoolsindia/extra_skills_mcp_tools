@@ -4,34 +4,35 @@
 
 set -e
 
-echo "=== Local Setup (Mac) ==="
+echo "=== Mac Local Setup ==="
 
-# Get Remote IP
-echo "Enter Remote (Pi5) IP address (check: ping pi5.local):"
-read -r REMOTE_IP
-REMOTE_IP=${REMOTE_IP:-192.168.1.100}
+# Get Pi5 IP
+echo "Enter Pi5 IP address:"
+read -r PI5_IP
+PI5_IP=${PI5_IP:-192.168.1.100}
 
 # Save to .env
 cat > .env << EOF
-REMOTE_IP=$REMOTE_IP
+PI5_IP=$PI5_IP
 EOF
 
-echo "Remote IP: $REMOTE_IP"
-echo "Building and starting local services..."
+echo "Pi5 IP: $PI5_IP"
+echo ""
+echo "Starting local services..."
 docker compose -f docker-compose.local.yml up -d --build
 
 echo ""
 echo "=== Local Services Running! ==="
 echo ""
-docker ps --format "table {{.Names}}\t{{.Status}}"
+docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 echo ""
 echo "Services:"
-echo "  MCP Server:  localhost:7710 (TCP)"
+echo "  MCP Server:  localhost:7710"
 echo "  PostgreSQL:  localhost:5432"
 echo "  Redis:       localhost:6379"
 echo ""
 echo "Remote (Pi5):"
-echo "  SearXNG:    http://$REMOTE_IP:7711"
-echo "  Firecrawl:  http://$REMOTE_IP:7712"
+echo "  SearXNG:    http://$PI5_IP:8080"
+echo "  Firecrawl:  http://$PI5_IP:3002"
 echo ""
-echo "Your Ollama (host):  localhost:11434"
+echo "Your Ollama:  localhost:11434"

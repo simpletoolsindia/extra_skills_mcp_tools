@@ -1,35 +1,29 @@
 # MCP Unified Server — 86 Tools for Agentic AI
 
-> **Split Setup** | Pi5 (Remote) + Mac (Local) | Docker Compose
+> **Split Setup** | Pi5 (Remote) + Mac (Local)
 
 ---
 
-## Two Separate Docker Compose Files
+## Two Docker Compose Files
 
-### 1. `docker-compose.remote.yml` — Pi5 (Always On)
-
+### Pi5 (Remote) - `docker-compose.remote.yml`
 ```bash
-docker compose -f docker-compose.remote.yml up -d
+./start-remote.sh
 ```
+| Service | Port |
+|---------|------|
+| SearXNG | 8080 |
+| Firecrawl | 3002 |
 
-**Services:**
-| Service | Port | Description |
-|---------|------|-------------|
-| SearXNG | 7711 | Web search |
-| Firecrawl | 7712 | Smart scraping |
-
-### 2. `docker-compose.local.yml` — Mac (On Demand)
-
+### Mac (Local) - `docker-compose.local.yml`
 ```bash
-docker compose -f docker-compose.local.yml up -d
+./start-local.sh
 ```
-
-**Services:**
-| Service | Port | Description |
-|---------|------|-------------|
-| MCP Server | 7710 | 86 tools (TCP) |
-| PostgreSQL | 5432 | Database |
-| Redis | 6379 | Cache |
+| Service | Port |
+|---------|------|
+| MCP Server | 7710 |
+| PostgreSQL | 5432 |
+| Redis | 6379 |
 
 ---
 
@@ -37,57 +31,32 @@ docker compose -f docker-compose.local.yml up -d
 
 ### Pi5
 ```bash
-# Clone
 git clone https://github.com/simpletoolsindia/extra_skills_mcp_tools.git
 cd extra_skills_mcp_tools
-
-# Setup
-chmod +x start-remote.sh
 ./start-remote.sh
 ```
 
 ### Mac
 ```bash
-# Clone
 git clone https://github.com/simpletoolsindia/extra_skills_mcp_tools.git
 cd extra_skills_mcp_tools
-
-# Setup
-chmod +x start-local.sh
 ./start-local.sh
 # Enter Pi5 IP when asked
 ```
 
 ---
 
-## Architecture
+## Remote Services URL (Update in .env)
 
+Pi5 IP: `192.168.1.100` (example)
+
+```env
+PI5_IP=192.168.1.100
 ```
-┌─────────────────────────────────────┐
-│            PI5 (Always On)            │
-│                                     │
-│  ┌───────────┐  ┌───────────┐      │
-│  │  SearXNG  │  │ Firecrawl │      │
-│  │   :7711   │  │   :7712   │      │
-│  └───────────┘  └───────────┘      │
-└─────────────────────────────────────┘
-              │
-              │ HTTP
-              ▼
-┌─────────────────────────────────────┐
-│              MAC (On Demand)        │
-│                                     │
-│  ┌───────────┐  ┌───────────┐      │
-│  │MCP Server │  │ PostgreSQL│      │
-│  │   :7710   │  │   :5432   │      │
-│  └───────────┘  └───────────┘      │
-│                                     │
-│  ┌───────────┐  ┌───────────┐      │
-│  │   Redis  │  │  Ollama   │      │
-│  │   :6379  │  │   :11434  │      │
-│  └───────────┘  └───────────┘      │
-└─────────────────────────────────────┘
-```
+
+MCP connects to:
+- `http://PI5_IP:8080` (SearXNG)
+- `http://PI5_IP:3002` (Firecrawl)
 
 ---
 
@@ -100,9 +69,6 @@ docker compose -f docker-compose.remote.yml up -d
 
 # Stop
 docker compose -f docker-compose.remote.yml down
-
-# Logs
-docker compose -f docker-compose.remote.yml logs -f
 ```
 
 ### Mac
@@ -119,26 +85,28 @@ docker compose -f docker-compose.local.yml logs -f mcp-server
 
 ---
 
-## Remote Access (Pi5 → Mac)
+## Architecture
 
-```bash
-# SSH tunnel MCP port to Mac
-ssh -L 7710:localhost:7710 pi@pi5.local
 ```
-
----
-
-## Claude Code (Mac)
-
-```json
-{
-  "mcpServers": {
-    "mcp-server": {
-      "command": "docker",
-      "args": ["exec", "-i", "mcp-server", "python", "-m", "mcp_server"]
-    }
-  }
-}
+┌─────────────────────────────────┐
+│           PI5 (Remote)            │
+│                                 │
+│  SearXNG  → :8080               │
+│  Firecrawl → :3002              │
+│                                 │
+│  (You manage domain routing)     │
+└─────────────────────────────────┘
+              │
+              │ http://PI5_IP:8080
+              │
+┌─────────────────────────────────┐
+│           MAC (Local)            │
+│                                 │
+│  MCP Server → :7710             │
+│  PostgreSQL → :5432             │
+│  Redis      → :6379             │
+│  Ollama     → localhost:11434   │
+└─────────────────────────────────┘
 ```
 
 ---
@@ -160,26 +128,15 @@ ssh -L 7710:localhost:7710 pi@pi5.local
 
 ---
 
-## Environment Variables
-
-### Mac (.env)
-```env
-REMOTE_IP=192.168.1.100  # Your Pi5 IP
-```
-
----
-
 ## Notes
 
-- **Pi5:** Runs 24/7, low power (~5W)
-- **Mac:** Uses power only when running
+- **Pi5:** Runs 24/7, low power
+- **Mac:** Uses power only when needed
 - **Firecrawl:** Requires 6 CPU + 12GB RAM
-- **Ollama:** Already running on Mac (localhost:11434)
+- **Ollama:** Already on Mac (localhost:11434)
 
 ---
 
 ## License
 
 MIT
-
-⭐ **Star on GitHub!**
