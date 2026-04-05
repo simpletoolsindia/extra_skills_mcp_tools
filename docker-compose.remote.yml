@@ -1,7 +1,7 @@
 # Pi5 / Remote Server - Always On Services
 # Run: docker compose -f docker-compose.remote.yml up -d
 #
-# Ports: 7171, 7172
+# Ports: 7171
 
 services:
   # ============================================
@@ -16,21 +16,3 @@ services:
       - "7171:8080"
     volumes:
       - ./searxng-data:/etc/searxng
-
-  # ============================================
-  # FIRECRAWL - Web Scraping
-  # Port: 7172
-  # Image: mcp/firecrawl (Docker Hub)
-  # Requires: 6 CPU + 12GB RAM
-  # ============================================
-  firecrawl:
-    image: mcp/firecrawl:latest
-    container_name: firecrawl
-    restart: unless-stopped
-    ports:
-      - "7172:3002"
-    volumes:
-      - ./firecrawl-data:/app/data
-    environment:
-      - PORT=3002
-      - HOST=0.0.0.0

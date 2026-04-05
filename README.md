@@ -13,7 +13,6 @@
 | Service | Port |
 |---------|------|
 | SearXNG | 7171 |
-| Firecrawl | 7172 |
 
 ### Mac (Local) - `docker-compose.local.yml`
 ```bash
@@ -22,6 +21,7 @@
 | Service | Port |
 |---------|------|
 | MCP Server | 7710 |
+| Firecrawl | 7172 |
 | PostgreSQL | 7173 |
 | Redis | 7174 |
 
@@ -46,17 +46,27 @@ cd extra_skills_mcp_tools
 
 ---
 
-## Remote Services URL (Update in .env)
+## Architecture
 
-Pi5 IP: `192.168.1.100` (example)
-
-```env
-PI5_IP=192.168.1.100
 ```
-
-MCP connects to:
-- `http://PI5_IP:7171` (SearXNG)
-- `http://PI5_IP:7172` (Firecrawl)
+┌─────────────────────────────────┐
+│           PI5 (Remote)            │
+│                                 │
+│  SearXNG → :7171               │
+└─────────────────────────────────┘
+              │
+              │ http://PI5_IP:7171
+              │
+┌─────────────────────────────────┐
+│           MAC (Local)            │
+│                                 │
+│  MCP Server → :7710            │
+│  Firecrawl  → :7172            │
+│  PostgreSQL → :7173            │
+│  Redis      → :7174            │
+│  Ollama     → localhost:11434   │
+└─────────────────────────────────┘
+```
 
 ---
 
@@ -85,30 +95,6 @@ docker compose -f docker-compose.local.yml logs -f mcp-server
 
 ---
 
-## Architecture
-
-```
-┌─────────────────────────────────┐
-│           PI5 (Remote)            │
-│                                 │
-│  SearXNG  → :7171              │
-│  Firecrawl → :7172             │
-└─────────────────────────────────┘
-              │
-              │ http://PI5_IP:7171
-              │
-┌─────────────────────────────────┐
-│           MAC (Local)            │
-│                                 │
-│  MCP Server → :7710             │
-│  PostgreSQL → :7173             │
-│  Redis      → :7174             │
-│  Ollama     → localhost:11434   │
-└─────────────────────────────────┘
-```
-
----
-
 ## All 86 Tools
 
 | Category | Count |
@@ -123,15 +109,6 @@ docker compose -f docker-compose.local.yml logs -f mcp-server
 | 🧠 Intelligence | 17 |
 | 💾 Files | 9 |
 | 🔧 Research | 5 |
-
----
-
-## Notes
-
-- **Pi5:** Runs 24/7, low power
-- **Mac:** Uses power only when needed
-- **Firecrawl:** Requires 6 CPU + 12GB RAM
-- **Ollama:** Already on Mac (localhost:11434)
 
 ---
 

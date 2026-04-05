@@ -29,8 +29,6 @@ trusted_proxies = ['127.0.0.0/8', '::1']
 pass_ip = ['127.0.0.0/8', '::1']
 EOF
 
-mkdir -p firecrawl-data
-
 echo "Starting remote services..."
 docker compose -f docker-compose.remote.yml up -d
 
@@ -39,6 +37,4 @@ echo "=== Remote Services Running! ==="
 echo ""
 docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 echo ""
-echo "Ports:"
-echo "  7171 - SearXNG"
-echo "  7172 - Firecrawl"
+echo "Port: 7171 - SearXNG"

@@ -1,7 +1,7 @@
 # Mac / Local Machine - On Demand Services
 # Run: docker compose -f docker-compose.local.yml up -d
 #
-# Ports: 7173, 7174, 7710
+# Ports: 7710, 7171, 7172, 7173, 7174
 
 services:
   # ============================================
@@ -18,11 +18,9 @@ services:
     ports:
       - "7710:7710"
     environment:
-      # UPDATE THIS: Your Pi5 IP address
+      # Remote (Pi5) - SearXNG only
       - PI5_IP=${PI5_IP:-192.168.1.100}
-      # Remote services (Pi5)
       - SEARXNG_BASE_URL=http://${PI5_IP:-192.168.1.100}:7171
-      - FIRECRAWL_HOST=http://${PI5_IP:-192.168.1.100}:7172
       # Local Ollama (host machine)
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
       # Local database
@@ -34,14 +32,36 @@ services:
       # Local cache
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      # Local Firecrawl
+      - FIRECRAWL_HOST=http://firecrawl:3002
       # MCP
       - MCP_SERVER_PORT=7710
       - PLAYWRIGHT_HEADLESS=true
     depends_on:
       - postgres
       - redis
+      - firecrawl
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    networks:
+      - local-network
+
+  # ============================================
+  # FIRECRAWL - Web Scraping
+  # Port: 7172
+  # Image: mcp/firecrawl
+  # ============================================
+  firecrawl:
+    image: mcp/firecrawl:latest
+    container_name: firecrawl
+    restart: unless-stopped
+    ports:
+      - "7172:3002"
+    volumes:
+      - ./firecrawl-data:/app/data
+    environment:
+      - PORT=3002
+      - HOST=0.0.0.0
     networks:
       - local-network
 
@@ -87,3 +107,4 @@ networks:
 volumes:
   postgres-data:
   redis-data:
+  firecrawl-data:
