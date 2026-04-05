@@ -2,6 +2,16 @@ version: "3.8"
 
 services:
   # ============================================
+  # PORTS (7711 onwards for MCP Server stack)
+  # ============================================
+  # 7711 - SearXNG (Web Search)
+  # 7712 - Firecrawl API (Optional - Heavy: 4CPU, 8GB RAM)
+  # 7713 - LiteLLM (LLM Gateway)
+  # 7714 - PostgreSQL
+  # 7715 - Redis
+  # 80/443 - Nginx Reverse Proxy
+
+  # ============================================
   # SEARXNG - Web Search Engine (Self-Hosted)
   # ============================================
   searxng:
@@ -9,7 +19,7 @@ services:
     container_name: searxng
     restart: unless-stopped
     ports:
-      - "8888:8080"
+      - "7711:8080"
     volumes:
       - ./searxng-data:/etc/searxng
     environment:
@@ -23,39 +33,14 @@ services:
       retries: 3
 
   # ============================================
-  # FIRECRAWL - Web Scraping (Self-Hosted)
-  # ============================================
-  firecrawl:
-    image: firecrawl/mcp-server:latest
-    container_name: firecrawl
-    restart: unless-stopped
-    ports:
-      - "3002:3002"
-    environment:
-      - PORT=3002
-      - HOST=0.0.0.0
-      - LOG_LEVEL=info
-      - MAX_CRAWL_DEPTH=10
-      - CRAWL_TIMEOUT=60000
-    volumes:
-      - ./firecrawl-data:/app/data
-    networks:
-      - mcp-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3002/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  # ============================================
-  # LITELLM - LLM Gateway (for local models)
+  # LITELLM - LLM Gateway (Self-Hosted)
   # ============================================
   litellm:
     image: ghcr.io/berriai/litellm:main
     container_name: litellm
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "7713:8000"
     volumes:
       - ./litellm-config:/app/config.yaml
     command: --config /app/config.yaml --port 8000
@@ -73,7 +58,7 @@ services:
     container_name: postgres
     restart: unless-stopped
     ports:
-      - "5432:5432"
+      - "7714:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     environment:
@@ -91,7 +76,7 @@ services:
     container_name: redis
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "7715:6379"
     volumes:
       - redis-data:/data
     command: redis-server --appendonly yes
@@ -116,7 +101,6 @@ services:
     depends_on:
       - searxng
       - litellm
-      - firecrawl
     networks:
       - mcp-network
 
@@ -126,6 +110,5 @@ networks:
 
 volumes:
   searxng-data:
-  firecrawl-data:
   postgres-data:
   redis-data:

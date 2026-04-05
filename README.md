@@ -77,11 +77,11 @@ pip install -e .
 
 #### Step 5: Start the Server
 ```bash
-# Start SearXNG (web search engine)
-docker run -d -p 8888:8080 --name searxng searxng/searxng
+# Start SearXNG (web search engine) - Port 7711
+docker run -d -p 7711:8080 --name searxng searxng/searxng
 
 # Start MCP Server
-python -m mcp_server
+SEARXNG_BASE_URL=http://localhost:7711 python -m mcp_server
 ```
 
 🎉 **You're done!** Your AI assistant can now use 86 tools!
@@ -145,8 +145,8 @@ Open `settings.json` and add:
       "command": "/path/to/python",
       "args": ["-m", "mcp_server"],
       "env": {
-        "SEARXNG_BASE_URL": "http://localhost:8888",
-        "FIRECRAWL_HOST": "http://localhost:3002",
+        "SEARXNG_BASE_URL": "http://localhost:7711",
+        "FIRECRAWL_HOST": "http://localhost:7712",
         "PYTHONPATH": "/path/to/mcp-server/src"
       }
     }
@@ -166,13 +166,20 @@ Open `settings.json` and add:
 
 All core services run on YOUR server — no external APIs or cloud dependencies:
 
-| Service | Purpose | Port | Docker Image |
-|---------|---------|------|-------------|
-| **SearXNG** | Privacy-respecting web search | 8888 | `searxng/searxng` |
-| **Firecrawl** | Intelligent web scraping | 3002 | `firecrawl/mcp-server` |
-| **Playwright** | Headless browser automation | (local) | `playwright` |
-| **Scrapling** | Fast CSS-based extraction | (local) | Built-in |
-| **LiteLLM** | Local LLM gateway | 8000 | `ghcr.io/berriai/litellm` |
+| Service | Purpose | Port | Docker Image | Resources |
+|---------|---------|------|-------------|-----------|
+| **SearXNG** | Privacy-respecting web search | 7711 | `searxng/searxng` | Lightweight |
+| **Firecrawl** | Intelligent web scraping | 7712 | `firecrawl/mcp-server` | ⚠️ **Heavy** (6 CPU + 12GB) |
+| **LiteLLM** | Local LLM gateway | 7713 | `ghcr.io/berriai/litellm` | Lightweight |
+| **PostgreSQL** | Database | 7714 | `postgres:15-alpine` | Lightweight |
+| **Redis** | Cache | 7715 | `redis:7-alpine` | Lightweight |
+| **Playwright** | JS rendering | (local) | Built-in | Lightweight |
+| **Scrapling** | Fast CSS extraction | (local) | Built-in | Lightweight |
+
+**⚠️ Firecrawl is OPTIONAL** — Requires 6 CPU + 12GB RAM. For lightweight servers (Pi5), use built-in scrapers:
+- **Playwright** — JS-heavy pages
+- **Scrapling** — Fast CSS extraction
+- **Webclaw** — Article extraction
 
 **Docker Compose (One command to start everything):**
 ```bash
@@ -207,19 +214,24 @@ docker run -d -p 8888:8080 --name searxng searxng/searxng
 | `extract_structured` | Pull out articles/products (Scrapling) | "Parse product listings" |
 | `scrape_freedium` | Read Medium articles free | `"https://freedium-mirror.cfd/ARTICLE_ID"` |
 | `list_freedium_articles` | Browse free Medium articles | (no input needed) |
-| `firecrawl_scrape` | Smart scraping (SELF-HOSTED Firecrawl) | `"https://example.com"` |
-| `firecrawl_crawl` | Scrape multiple pages | `"https://blog.com/posts"` |
+| `firecrawl_scrape` | Smart scraping (Firecrawl - OPTIONAL) | `"https://example.com"` |
+| `firecrawl_crawl` | Scrape multiple pages (Firecrawl) | `"https://blog.com/posts"` |
 | `webclaw_crawl` | Custom extraction patterns | `{url, selectors: {...}}` |
 | `webclaw_extract_article` | Extract article content | `"https://medium.com/article"` |
 | `browserbase_browse` | Fallback to Playwright | `"https://example.com"` |
 
-**Self-Hosted Scraping Stack:**
+**Lightweight Scraping (Default - Works on Pi5):**
 ```bash
-# Firecrawl (self-hosted)
-docker run -d -p 3002:3002 --name firecrawl firecrawl/mcp-server:latest
-
-# Playwright fallback (no API needed)
+# Playwright (for JS-heavy pages)
 playwright install chromium
+
+# Scrapling & Webclaw - already installed
+```
+
+**Optional Heavy Scraping (Requires 6 CPU + 12GB RAM):**
+```bash
+# Firecrawl self-hosting
+docker run -d -p 7712:3002 --name firecrawl ghcr.io/mendableai/firecrawl/main
 ```
 
 **Example - Get an Article:**

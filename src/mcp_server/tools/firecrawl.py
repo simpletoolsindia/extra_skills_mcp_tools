@@ -1,4 +1,15 @@
-"""Firecrawl MCP - Self-hosted web scraping with intelligent content extraction."""
+"""Firecrawl MCP - Optional advanced web scraping.
+
+NOTE: Self-hosted Firecrawl requires significant resources:
+- API service: 4 CPU cores, 8GB RAM minimum
+- Playwright service: 2 CPU cores, 4GB RAM minimum
+- Total: ~6 CPU cores, 12GB RAM
+
+For lightweight servers (Pi5), use the built-in scrapers instead:
+- Playwright (already installed) - for JS-heavy pages
+- Scrapling - for fast CSS extraction
+- Webclaw - for article extraction
+"""
 
 from __future__ import annotations
 
@@ -12,9 +23,9 @@ try:
 except ImportError:
     HTTpx_AVAILABLE = False
 
-# Self-hosted Firecrawl URL (set via environment or Docker service)
+# Self-hosted Firecrawl URL
 FIRECRAWL_HOST = os.environ.get("FIRECRAWL_HOST", "http://localhost:3002")
-FIRECRAWL_TOKEN = os.environ.get("FIRECRAWL_API_TOKEN", "")  # Optional for self-hosted
+FIRECRAWL_TOKEN = os.environ.get("FIRECRAWL_API_TOKEN", "")
 
 
 def _get_headers() -> dict:
@@ -25,7 +36,7 @@ def _get_headers() -> dict:
     return headers
 
 
-def _is_self_hosted_available() -> bool:
+def _is_firecrawl_available() -> bool:
     """Check if self-hosted Firecrawl is running."""
     try:
         with httpx.Client(timeout=5.0) as client:
@@ -35,17 +46,27 @@ def _is_self_hosted_available() -> bool:
         return False
 
 
+def _get_resource_info() -> dict:
+    """Get recommended scraper based on server resources."""
+    return {
+        "firecrawl_available": _is_firecrawl_available(),
+        "playwright_available": _is_playwright_available(),
+        "recommendation": "firecrawl" if _is_firecrawl_available() else "playwright",
+        "note": "Firecrawl requires 6 CPU + 12GB RAM. Using lightweight alternatives.",
+    }
+
+
+def _is_playwright_available() -> bool:
+    """Check if Playwright is available."""
+    try:
+        from .playwright_scrape import scrape_dynamic_page
+        return True
+    except Exception:
+        return False
+
+
 def _scrape_with_playwright(url: str, only_main_content: bool = True) -> dict:
-    """
-    Fallback scraping using Playwright (self-hosted).
-
-    Args:
-        url: URL to scrape
-        only_main_content: Only return main content
-
-    Returns:
-        dict with keys: content, markdown, links, metadata, error
-    """
+    """Scrape using Playwright (self-hosted, lightweight)."""
     try:
         from .playwright_scrape import scrape_dynamic_page
         result = asyncio.run(scrape_dynamic_page(url=url))
@@ -68,15 +89,7 @@ def _scrape_with_playwright(url: str, only_main_content: bool = True) -> dict:
 
 
 def _scrape_with_scrapling(url: str) -> dict:
-    """
-    Fallback scraping using Scrapling (self-hosted).
-
-    Args:
-        url: URL to scrape
-
-    Returns:
-        dict with keys: content, markdown, links, metadata, error
-    """
+    """Scrape using Scrapling (self-hosted, fast)."""
     try:
         from .scrapling_extract import extract_structured
         result = extract_structured(
@@ -103,15 +116,7 @@ def _scrape_with_scrapling(url: str) -> dict:
 
 
 def _scrape_with_webclaw(url: str) -> dict:
-    """
-    Fallback scraping using Webclaw (self-hosted).
-
-    Args:
-        url: URL to scrape
-
-    Returns:
-        dict with keys: content, markdown, links, metadata, error
-    """
+    """Scrape using Webclaw (self-hosted, article-focused)."""
     try:
         from .webclaw import extract_article
         result = extract_article(url)
@@ -144,19 +149,24 @@ def scrape_url(
     include_html: bool = False,
 ) -> dict:
     """
-    Scrape a URL with self-hosted Firecrawl (or fallback to local scrapers).
+    Scrape a URL using best available scraper.
+
+    Priority: Firecrawl (if available) > Playwright > Scrapling > Webclaw
+
+    For Firecrawl self-hosting (requires 6 CPU + 12GB RAM):
+    See: https://github.com/firecrawl/firecrawl/blob/main/SELF_HOST.md
 
     Args:
         url: URL to scrape
-        page_limit: Number of pages to crawl (default: 1)
-        only_main_content: Only return main content (no nav/footers)
+        page_limit: Number of pages to crawl
+        only_main_content: Only return main content
         include_html: Include raw HTML
 
     Returns:
         dict with keys: content, markdown, links, metadata, source, error
     """
-    # Try self-hosted Firecrawl first
-    if _is_self_hosted_available():
+    # Try Firecrawl first (if available)
+    if _is_firecrawl_available():
         try:
             with httpx.Client(timeout=60.0) as client:
                 response = client.post(
@@ -172,7 +182,6 @@ def scrape_url(
                 response.raise_for_status()
 
             data = response.json()
-
             return {
                 "content": data.get("content", ""),
                 "markdown": data.get("markdown", ""),
@@ -181,21 +190,20 @@ def scrape_url(
                 "source": "firecrawl-self-hosted",
                 "error": None,
             }
-        except Exception as e:
-            # Firecrawl failed, fall through to local scrapers
+        except Exception:
             pass
 
-    # Fallback 1: Playwright (for JS-heavy pages)
+    # Fallback 1: Playwright (JS rendering)
     result = _scrape_with_playwright(url, only_main_content)
     if not result.get("error"):
         return result
 
-    # Fallback 2: Scrapling (for fast CSS extraction)
+    # Fallback 2: Scrapling (fast CSS)
     result = _scrape_with_scrapling(url)
     if not result.get("error"):
         return result
 
-    # Fallback 3: Webclaw (for article extraction)
+    # Fallback 3: Webclaw (article extraction)
     result = _scrape_with_webclaw(url)
     if not result.get("error"):
         return result
@@ -206,7 +214,8 @@ def scrape_url(
         "links": [],
         "metadata": {},
         "source": "none",
-        "error": "All scraping methods failed. Try installing Playwright: playwright install chromium",
+        "error": "All scrapers failed. Install Playwright: playwright install chromium",
+        "resource_info": _get_resource_info(),
     }
 
 
@@ -217,19 +226,13 @@ def crawl_url(
     include_html: bool = False,
 ) -> dict:
     """
-    Crawl a URL with multiple pages (self-hosted Firecrawl).
+    Crawl multiple pages.
 
-    Args:
-        url: Starting URL
-        limit: Max pages to crawl
-        allow_external: Allow crawling external domains
-        include_html: Include raw HTML
-
-    Returns:
-        dict with keys: pages (list), source, error
+    For multi-page crawling with Firecrawl:
+    1. Self-host Firecrawl (requires 6 CPU + 12GB RAM)
+    2. Or use webclaw.batch_crawl for simple site maps
     """
-    # Try self-hosted Firecrawl
-    if _is_self_hosted_available():
+    if _is_firecrawl_available():
         try:
             with httpx.Client(timeout=120.0) as client:
                 response = client.post(
@@ -246,7 +249,6 @@ def crawl_url(
 
             data = response.json()
             pages = []
-
             for item in data.get("data", []):
                 pages.append({
                     "url": item.get("url"),
@@ -261,40 +263,38 @@ def crawl_url(
                 "source": "firecrawl-self-hosted",
                 "error": None,
             }
-        except Exception as e:
+        except Exception:
             pass
 
-    # Fallback: Use Webclaw batch crawl
-    try:
-        from .webclaw import batch_crawl
+    # Fallback: Use Webclaw for simple crawling
+    from .webclaw import crawl_with_selectors
 
-        # Generate URLs (this is a simplified fallback)
-        pages = [{"url": url, "source": "webclaw-fallback", "error": "Crawl limit exceeded"}]
-        return {
-            "pages": pages,
-            "total": 1,
-            "source": "webclaw",
-            "error": "Self-hosted Firecrawl not available. Using single URL.",
-        }
-    except Exception:
-        return {
-            "pages": [],
-            "source": "none",
-            "error": "Crawl requires self-hosted Firecrawl. Start Firecrawl Docker or set FIRECRAWL_HOST",
-        }
+    # Get links from page first
+    page_data = scrape_url(url)
+    links = page_data.get("links", [])[:limit]
+
+    pages = [{"url": url, "content": page_data.get("content", ""), "source": "local"}]
+
+    return {
+        "pages": pages,
+        "total": len(pages),
+        "source": "local-fallback",
+        "error": "Multi-page crawl requires self-hosted Firecrawl. Use webclaw_crawl for single-page with selectors.",
+        "resource_info": {
+            "firecrawl_required": True,
+            "requirements": "6 CPU cores, 12GB RAM",
+            "docs": "https://github.com/firecrawl/firecrawl/blob/main/SELF_HOST.md",
+        },
+    }
 
 
 def map_url(url: str) -> dict:
     """
-    Get all URLs from a website (self-hosted Firecrawl).
+    Get all URLs from a website.
 
-    Args:
-        url: Website to map
-
-    Returns:
-        dict with keys: urls (list), source, error
+    Self-hosted Firecrawl required for full site mapping.
     """
-    if _is_self_hosted_available():
+    if _is_firecrawl_available():
         try:
             with httpx.Client(timeout=60.0) as client:
                 response = client.post(
@@ -305,7 +305,6 @@ def map_url(url: str) -> dict:
                 response.raise_for_status()
 
             data = response.json()
-
             return {
                 "urls": data.get("urls", []),
                 "count": len(data.get("urls", [])),
@@ -313,58 +312,45 @@ def map_url(url: str) -> dict:
                 "error": None,
             }
         except Exception as e:
-            return {
-                "urls": [],
-                "count": 0,
-                "source": "none",
-                "error": f"Self-hosted Firecrawl map failed: {e}",
-            }
+            pass
 
-    # Fallback: Use Webclaw to get links from a page
+    # Fallback: Get links from homepage
     result = _scrape_with_webclaw(url)
     if result.get("links"):
         return {
-            "urls": result.get("links", [])[:50],  # Limit to 50 URLs
+            "urls": result.get("links", [])[:50],
             "count": len(result.get("links", [])),
-            "source": "webclaw",
-            "error": None,
+            "source": "webclaw-fallback",
+            "error": "Full site mapping requires self-hosted Firecrawl",
+            "resource_info": {
+                "firecrawl_required": True,
+                "requirements": "6 CPU cores, 12GB RAM",
+                "docs": "https://github.com/firecrawl/firecrawl/blob/main/SELF_HOST.md",
+            },
         }
 
     return {
         "urls": [],
         "count": 0,
         "source": "none",
-        "error": "URL mapping requires self-hosted Firecrawl or a page with links",
+        "error": "URL mapping requires self-hosted Firecrawl",
     }
 
 
 def batch_scrape(urls: List[str], only_main_content: bool = True) -> dict:
-    """
-    Scrape multiple URLs in batch (self-hosted or fallback).
-
-    Args:
-        urls: List of URLs to scrape
-        only_main_content: Only return main content
-
-    Returns:
-        dict with keys: results (list), total, source, error
-    """
-    if _is_self_hosted_available():
+    """Scrape multiple URLs in batch."""
+    if _is_firecrawl_available():
         try:
             with httpx.Client(timeout=120.0) as client:
                 response = client.post(
                     f"{FIRECRAWL_HOST}/v0/batch/scrape",
                     headers=_get_headers(),
-                    json={
-                        "urls": urls,
-                        "onlyMainContent": only_main_content,
-                    },
+                    json={"urls": urls, "onlyMainContent": only_main_content},
                 )
                 response.raise_for_status()
 
             data = response.json()
             results = []
-
             for item in data.get("data", []):
                 results.append({
                     "url": item.get("url"),
@@ -381,7 +367,7 @@ def batch_scrape(urls: List[str], only_main_content: bool = True) -> dict:
         except Exception:
             pass
 
-    # Fallback: Scrape each URL individually
+    # Fallback: Scrape individually
     results = []
     for url in urls:
         result = scrape_url(url, only_main_content=only_main_content)
@@ -395,6 +381,39 @@ def batch_scrape(urls: List[str], only_main_content: bool = True) -> dict:
     return {
         "results": results,
         "total": len(results),
+        "successful": sum(1 for r in results if r["success"]),
         "source": "local-scrapers",
         "error": None,
+    }
+
+
+def get_scraper_status() -> dict:
+    """Get status of all available scrapers."""
+    return {
+        "firecrawl": {
+            "available": _is_firecrawl_available(),
+            "host": FIRECRAWL_HOST,
+            "optional": True,
+            "requirements": "6 CPU cores, 12GB RAM",
+            "install": "https://github.com/firecrawl/firecrawl/blob/main/SELF_HOST.md",
+        },
+        "playwright": {
+            "available": _is_playwright_available(),
+            "optional": False,
+            "requirements": "Default (lightweight)",
+            "install": "playwright install chromium",
+        },
+        "scrapling": {
+            "available": True,
+            "optional": False,
+            "requirements": "Default (lightweight)",
+            "install": "pip install scrapling",
+        },
+        "webclaw": {
+            "available": True,
+            "optional": False,
+            "requirements": "Default (lightweight)",
+            "install": "Included",
+        },
+        "active_scraper": "playwright" if _is_playwright_available() else "scrapling",
     }
