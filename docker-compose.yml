@@ -1,18 +1,12 @@
 version: "3.8"
 
+# MCP Unified Server - Complete Stack
+# Run: docker-compose up -d
+# Access: http://localhost:7711 (SearXNG)
+
 services:
   # ============================================
-  # PORTS (7711 onwards for MCP Server stack)
-  # ============================================
-  # 7711 - SearXNG (Web Search)
-  # 7712 - Firecrawl API (Optional - Heavy: 4CPU, 8GB RAM)
-  # 7713 - LiteLLM (LLM Gateway)
-  # 7714 - PostgreSQL
-  # 7715 - Redis
-  # 80/443 - Nginx Reverse Proxy
-
-  # ============================================
-  # SEARXNG - Web Search Engine (Self-Hosted)
+  # SEARXNG - Web Search (Port 7711)
   # ============================================
   searxng:
     image: searxng/searxng:latest
@@ -23,17 +17,12 @@ services:
     volumes:
       - ./searxng-data:/etc/searxng
     environment:
-      - SEARXNG_BASE_URL=https://search.sridharhomelab.in/
+      - SEARXNG_BASE_URL=http://localhost:7711/
     networks:
       - mcp-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/search?q=test"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
 
   # ============================================
-  # LITELLM - LLM Gateway (Self-Hosted)
+  # LITELLM - Local LLM Gateway (Port 7713)
   # ============================================
   litellm:
     image: ghcr.io/berriai/litellm:main
@@ -41,17 +30,14 @@ services:
     restart: unless-stopped
     ports:
       - "7713:8000"
-    volumes:
-      - ./litellm-config:/app/config.yaml
-    command: --config /app/config.yaml --port 8000
     environment:
       - DATABASE_URL=sqlite:///litellm.db
-      - LITELLM_MASTER_KEY=sk-your-secure-key-here
+      - LITELLM_MASTER_KEY=sk-local
     networks:
       - mcp-network
 
   # ============================================
-  # POSTGRES - Database
+  # POSTGRES - Database (Port 7714)
   # ============================================
   postgres:
     image: postgres:15-alpine
@@ -64,12 +50,12 @@ services:
     environment:
       - POSTGRES_DB=mcp_server
       - POSTGRES_USER=mcp_user
-      - POSTGRES_PASSWORD=your-secure-db-password
+      - POSTGRES_PASSWORD=postgres
     networks:
       - mcp-network
 
   # ============================================
-  # REDIS - Cache
+  # REDIS - Cache (Port 7715)
   # ============================================
   redis:
     image: redis:7-alpine
@@ -79,12 +65,11 @@ services:
       - "7715:6379"
     volumes:
       - redis-data:/data
-    command: redis-server --appendonly yes
     networks:
       - mcp-network
 
   # ============================================
-  # NGINX - Reverse Proxy
+  # NGINX - Reverse Proxy (Ports 80, 443)
   # ============================================
   nginx:
     image: nginx:alpine
@@ -96,8 +81,6 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
-      - ./nginx/html:/usr/share/nginx/html:ro
-      - ./nginx/certs:/etc/nginx/certs:ro
     depends_on:
       - searxng
       - litellm
