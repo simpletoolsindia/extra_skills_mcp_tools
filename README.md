@@ -1,6 +1,6 @@
 # MCP Unified Server — 86 Tools for Agentic AI
 
-> **100% Self-Hosted** | **One Command Setup** | Docker Compose
+> **100% Self-Hosted** | **Docker Compose** | **Remote Access Ready**
 
 ---
 
@@ -16,15 +16,63 @@ cd extra_skills_mcp_tools
 
 ---
 
-## What You Get
+## Services
 
 | Service | Port | Description |
 |---------|------|-------------|
-| **MCP Server** | Container | 86 AI tools |
-| **SearXNG** | 7711 | Privacy search engine |
+| **MCP Server** | 7710 | TCP - Remote access |
+| **SearXNG** | 7711 | Web search |
 | **LiteLLM** | 7713 | Local LLM gateway |
 | **PostgreSQL** | 7714 | Database |
 | **Redis** | 7715 | Cache |
+
+---
+
+## Remote Access
+
+### Option 1: SSH Tunnel (Recommended)
+
+```bash
+# From your local machine, tunnel to remote server
+ssh -L 7710:localhost:7710 user@your-server.com
+
+# Then use MCP normally
+```
+
+### Option 2: Direct Connection
+
+```bash
+# Connect to remote MCP server
+nc your-server.com 7710
+
+# Send JSON-RPC requests
+{"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}}
+```
+
+### Option 3: Claude Code (Remote)
+
+Add to your local `~/.claude/settings.json`:
+
+```json
+{
+  "mcpServers": {
+    "remote-mcp": {
+      "command": "ssh",
+      "args": ["-L", "7710:localhost:7710", "user@your-server.com", "nc", "localhost", "7710"]
+    }
+  }
+}
+```
+
+### Option 4: Docker Exec (Same Machine)
+
+```bash
+# Run commands inside container
+docker exec mcp-server python -m mcp_server
+
+# Or attach to running container
+docker attach mcp-server
+```
 
 ---
 
@@ -70,105 +118,29 @@ cd extra_skills_mcp_tools
 
 ---
 
-## Manual Commands
-
-### Start
-```bash
-# Create SearXNG config
-mkdir -p searxng-data
-cat > searxng-data/settings.yml << 'EOF'
-use_default_settings: true
-search:
-  safe_search: 0
-  formats:
-    - html
-    - json
-server:
-  secret_key: "change-me"
-  limiter: false
-EOF
-
-# Build and run
-docker-compose up -d --build
-```
-
-### Stop
-```bash
-docker-compose down
-```
-
-### View Logs
-```bash
-docker-compose logs -f mcp-server
-```
-
-### Restart
-```bash
-docker-compose restart mcp-server
-```
-
----
-
-## Docker Commands Reference
+## Docker Commands
 
 | Command | Description |
 |---------|-------------|
 | `docker-compose up -d` | Start all containers |
 | `docker-compose down` | Stop all containers |
 | `docker-compose logs -f` | View logs |
-| `docker-compose restart` | Restart services |
+| `docker-compose logs -f mcp-server` | View MCP logs |
+| `docker-compose restart` | Restart all |
 | `docker-compose ps` | Check status |
-| `docker-compose build --no-cache` | Rebuild |
-
----
-
-## Claude Code Setup
-
-Add to `~/.claude/settings.json`:
-
-```json
-{
-  "mcpServers": {
-    "mcp-server": {
-      "command": "docker",
-      "args": ["exec", "-i", "mcp-server", "python", "-m", "mcp_server"]
-    }
-  }
-}
-```
-
-Or run MCP directly:
-```bash
-docker exec -it mcp-server python -m mcp_server
-```
-
----
-
-## Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `SEARXNG_BASE_URL` | http://searxng:8080 | SearXNG URL |
-| `FIRECRAWL_HOST` | http://firecrawl:3002 | Firecrawl URL (optional) |
-| `PLAYWRIGHT_HEADLESS` | true | Headless browser |
 
 ---
 
 ## Pi5 / Dokploy Deployment
 
 ```bash
-# Clone
+# Clone and deploy
 git clone https://github.com/simpletoolsindia/extra_skills_mcp_tools.git
 cd extra_skills_mcp_tools
-
-# SSL Certificates
-sudo certbot certonly --standalone -d search.sridharhomelab.in
-
-# Copy certs
-sudo cp /etc/letsencrypt/.../*.pem docker/nginx/certs/
-
-# Deploy
 ./start.sh
+
+# Access remotely
+ssh -L 7710:localhost:7710 pi@your-pi.local
 ```
 
 ---

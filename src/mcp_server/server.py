@@ -1,12 +1,13 @@
 """
-MCP Server — Unified STDIO-based Model Context Protocol server.
-35+ tools for local LLM agentic workflows.
+MCP Server — Unified Model Context Protocol server.
+Supports both STDIO (local) and TCP (remote) modes.
 """
 
 from __future__ import annotations
 
 import json
 import sys
+import os
 import logging
 import asyncio
 from typing import Any
@@ -149,7 +150,7 @@ TOOL_CALLABLES: dict[str, Any] = {
     "youtube_batch_transcribe": youtube_transcript.batch_transcribe,
     "youtube_summarize": youtube_transcript.summarize_transcript,
 
-    # === Engineering Intelligence (engi-mcp) ===
+    # === Engineering Intelligence ===
     "engi_task_classify": engi_intelligence.task_classify,
     "engi_repo_scope_find": engi_intelligence.repo_scope_find,
     "engi_flow_summarize": engi_intelligence.flow_summarize,
@@ -168,139 +169,214 @@ TOOL_CALLABLES: dict[str, Any] = {
 }
 
 
-def send_response(response: dict) -> None:
-    """Send a JSON-RPC response to stdout."""
-    sys.stdout.write(json.dumps(response) + "\n")
-    sys.stdout.flush()
+class MCPServer:
+    """MCP Server with STDIO and TCP support."""
 
+    def __init__(self):
+        self.writer = None
 
-def send_notification(method: str, params: dict | None = None) -> None:
-    """Send a JSON-RPC notification (no id)."""
-    msg: dict[str, Any] = {"jsonrpc": "2.0", "method": method}
-    if params:
-        msg["params"] = params
-    sys.stdout.write(json.dumps(msg) + "\n")
-    sys.stdout.flush()
-
-
-def handle_initialize(params: dict) -> dict:
-    """Handle MCP initialize handshake."""
-    return {
-        "protocolVersion": "2024-11-05",
-        "capabilities": {"tools": {}},
-        "serverInfo": {
-            "name": "mcp-server-unified",
-            "version": "2.0.0",
-        },
-    }
-
-
-def handle_tools_list(params: dict) -> dict:
-    """Handle tools/list — return all registered tools."""
-    return {"tools": TOOL_DEFINITIONS}
-
-
-def handle_tools_call(params: dict) -> dict:
-    """Handle tools/call — dispatch to the appropriate tool."""
-    name: str = params.get("name", "")
-    arguments: dict = params.get("arguments", {})
-
-    if name not in TOOL_CALLABLES:
-        return {
-            "content": [{"type": "text", "text": json.dumps({"error": f"Unknown tool: {name}"})}],
-            "isError": True,
-        }
-
-    try:
-        tool_func = TOOL_CALLABLES[name]
-
-        # Handle async functions
-        if asyncio.iscoroutinefunction(tool_func):
-            result = asyncio.run(tool_func(**arguments))
+    def send_response(self, response: dict, writer=None) -> None:
+        """Send a JSON-RPC response."""
+        msg = json.dumps(response) + "\n"
+        if writer:
+            writer.write(msg.encode())
+            writer.drain()
         else:
-            result = tool_func(**arguments)
+            sys.stdout.write(msg)
+            sys.stdout.flush()
 
+    def send_notification(self, method: str, params: dict | None = None, writer=None) -> None:
+        """Send a JSON-RPC notification (no id)."""
+        msg: dict[str, Any] = {"jsonrpc": "2.0", "method": method}
+        if params:
+            msg["params"] = params
+        msg_str = json.dumps(msg) + "\n"
+        if writer:
+            writer.write(msg_str.encode())
+            writer.drain()
+        else:
+            sys.stdout.write(msg_str)
+            sys.stdout.flush()
+
+    def handle_initialize(self, params: dict) -> dict:
+        """Handle MCP initialize handshake."""
         return {
-            "content": [{"type": "text", "text": json.dumps(result, ensure_ascii=False)}],
-            "isError": False,
+            "protocolVersion": "2024-11-05",
+            "capabilities": {"tools": {}},
+            "serverInfo": {
+                "name": "mcp-server-unified",
+                "version": "2.0.0",
+            },
         }
 
-    except TypeError as e:
-        return {
-            "content": [{"type": "text", "text": json.dumps({"error": f"Invalid arguments: {e}"})}],
-            "isError": True,
-        }
-    except Exception as e:
-        log.exception("Tool '%s' raised an exception", name)
-        return {
-            "content": [{"type": "text", "text": json.dumps({"error": str(e)})}],
-            "isError": True,
-        }
+    def handle_tools_list(self, params: dict) -> dict:
+        """Handle tools/list."""
+        return {"tools": TOOL_DEFINITIONS}
 
+    def handle_tools_call(self, params: dict) -> dict:
+        """Handle tools/call."""
+        name: str = params.get("name", "")
+        arguments: dict = params.get("arguments", {})
 
-def handle_request(method: str, params: dict, msg_id: int | str | None) -> None:
-    """Route a JSON-RPC request and send the response."""
-    if method == "initialize":
-        result = handle_initialize(params)
-        send_response({
-            "jsonrpc": "2.0",
-            "id": msg_id,
-            "result": result,
-        })
-        send_notification("notifications/initialized", {})
-        return
+        if name not in TOOL_CALLABLES:
+            return {
+                "content": [{"type": "text", "text": json.dumps({"error": f"Unknown tool: {name}"})}],
+                "isError": True,
+            }
 
-    handler = {
-        "tools/list": handle_tools_list,
-        "tools/call": handle_tools_call,
-    }.get(method)
+        try:
+            tool_func = TOOL_CALLABLES[name]
 
-    if handler is None:
-        send_response({
-            "jsonrpc": "2.0",
-            "id": msg_id,
-            "error": {"code": -32601, "message": f"Method not found: {method}"},
-        })
-        return
+            if asyncio.iscoroutinefunction(tool_func):
+                result = asyncio.run(tool_func(**arguments))
+            else:
+                result = tool_func(**arguments)
 
-    try:
-        result = handler(params)
-        send_response({
-            "jsonrpc": "2.0",
-            "id": msg_id,
-            "result": result,
-        })
-    except Exception as e:
-        log.exception("Handler for '%s' raised an exception", method)
-        send_response({
-            "jsonrpc": "2.0",
-            "id": msg_id,
-            "error": {"code": -32603, "message": str(e)},
-        })
+            return {
+                "content": [{"type": "text", "text": json.dumps(result, ensure_ascii=False)}],
+                "isError": False,
+            }
+
+        except TypeError as e:
+            return {
+                "content": [{"type": "text", "text": json.dumps({"error": f"Invalid arguments: {e}"})}],
+                "isError": True,
+            }
+        except Exception as e:
+            log.exception("Tool '%s' raised an exception", name)
+            return {
+                "content": [{"type": "text", "text": json.dumps({"error": str(e)})}],
+                "isError": True,
+            }
+
+    def handle_request(self, method: str, params: dict, msg_id: int | str | None, writer=None) -> None:
+        """Route a JSON-RPC request."""
+        if method == "initialize":
+            result = self.handle_initialize(params)
+            self.send_response({
+                "jsonrpc": "2.0",
+                "id": msg_id,
+                "result": result,
+            }, writer)
+            self.send_notification("notifications/initialized", {}, writer)
+            return
+
+        handler = {
+            "tools/list": self.handle_tools_list,
+            "tools/call": self.handle_tools_call,
+        }.get(method)
+
+        if handler is None:
+            self.send_response({
+                "jsonrpc": "2.0",
+                "id": msg_id,
+                "error": {"code": -32601, "message": f"Method not found: {method}"},
+            }, writer)
+            return
+
+        try:
+            result = handler(params)
+            self.send_response({
+                "jsonrpc": "2.0",
+                "id": msg_id,
+                "result": result,
+            }, writer)
+        except Exception as e:
+            log.exception("Handler for '%s' raised an exception", method)
+            self.send_response({
+                "jsonrpc": "2.0",
+                "id": msg_id,
+                "error": {"code": -32603, "message": str(e)},
+            }, writer)
+
+    async def handle_tcp_client(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+        """Handle a TCP client connection."""
+        addr = writer.get_extra_info('peername')
+        log.warning(f"Client connected from {addr}")
+
+        try:
+            while True:
+                line = await reader.readline()
+                if not line:
+                    break
+
+                line = line.decode().strip()
+                if not line:
+                    continue
+
+                try:
+                    msg = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+
+                if msg.get("method") in ("initialize", "tools/list", "tools/call"):
+                    self.handle_request(
+                        method=msg["method"],
+                        params=msg.get("params", {}),
+                        msg_id=msg.get("id"),
+                        writer=writer,
+                    )
+                elif msg.get("method", "").startswith("notifications/"):
+                    pass
+
+        except Exception as e:
+            log.exception(f"Client error: {addr}")
+        finally:
+            writer.close()
+            await writer.wait_closed()
+            log.warning(f"Client disconnected: {addr}")
+
+    async def run_tcp(self, host: str = "0.0.0.0", port: int = 7710) -> None:
+        """Run server in TCP mode for remote access."""
+        server = await asyncio.start_server(
+            self.handle_tcp_client,
+            host,
+            port
+        )
+
+        addr = server.sockets[0].getsockname()
+        log.warning(f"MCP TCP Server running on {addr}")
+        log.warning(f"Connect: nc {addr[0]} {addr[1]}")
+        log.warning(f"Or use: python -m mcp_server --tcp {addr[1]}")
+
+        async with server:
+            await server.serve_forever()
+
+    def run_stdio(self) -> None:
+        """Run server in STDIO mode (default for Claude Code)."""
+        log.warning(f"MCP Unified Server starting with {len(TOOL_CALLABLES)} tools")
+
+        for line in sys.stdin:
+            line = line.strip()
+            if not line:
+                continue
+
+            try:
+                msg = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+
+            if msg.get("method") in ("initialize", "tools/list", "tools/call"):
+                self.handle_request(
+                    method=msg["method"],
+                    params=msg.get("params", {}),
+                    msg_id=msg.get("id"),
+                )
+            elif msg.get("method", "").startswith("notifications/"):
+                pass
 
 
 def run() -> None:
-    """Main server loop — read JSON-RPC requests from stdin."""
-    log.warning(f"MCP Unified Server starting with {len(TOOL_CALLABLES)} tools")
+    """Main entry point."""
+    mcp = MCPServer()
+    port = int(os.environ.get("MCP_SERVER_PORT", "0"))  # 0 = STDIO mode
 
-    for line in sys.stdin:
-        line = line.strip()
-        if not line:
-            continue
-
-        try:
-            msg: dict = json.loads(line)
-        except json.JSONDecodeError:
-            continue
-
-        if msg.get("method") in ("initialize", "tools/list", "tools/call"):
-            handle_request(
-                method=msg["method"],
-                params=msg.get("params", {}),
-                msg_id=msg.get("id"),
-            )
-        elif msg.get("method", "").startswith("notifications/"):
-            pass
+    if port > 0:
+        # TCP mode for remote access
+        asyncio.run(mcp.run_tcp(port=port))
+    else:
+        # STDIO mode (default)
+        mcp.run_stdio()
 
 
 if __name__ == "__main__":

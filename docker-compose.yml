@@ -1,13 +1,17 @@
 # MCP Unified Server - Complete Stack
 # Run: docker-compose up -d
-# That's it! Everything runs automatically.
-# Run: docker-compose up -d
-# That's it! Everything runs automatically.
+# Access: http://localhost:7711 (SearXNG)
+#
+# Remote Access:
+#   - MCP Server: Port 7710 (stdio via TCP)
+#   - SearXNG: Port 7711
+#   - LiteLLM: Port 7713
 
 services:
   # ============================================
   # MCP SERVER - Your AI Tool Server
-  # Connects to all services automatically
+  # Local: docker exec or pipe to Claude Code
+  # Remote: TCP socket on port 7710
   # ============================================
   mcp-server:
     build:
@@ -15,10 +19,13 @@ services:
       dockerfile: Dockerfile
     container_name: mcp-server
     restart: unless-stopped
+    ports:
+      - "7710:7710"  # Remote access port
     environment:
       - SEARXNG_BASE_URL=http://searxng:8080
       - FIRECRAWL_HOST=http://firecrawl:3002
       - PLAYWRIGHT_HEADLESS=true
+      - MCP_SERVER_PORT=7710
     networks:
       - mcp-network
 
