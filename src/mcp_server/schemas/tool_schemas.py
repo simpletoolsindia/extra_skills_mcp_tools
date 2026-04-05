@@ -834,4 +834,74 @@ TOOL_DEFINITIONS = [
             "required": ["command"],
         },
     },
+    # ===== YOUTUBE TRANSCRIPT =====
+    {
+        "name": "youtube_transcript",
+        "description": "Extract transcript from YouTube video. Works with YouTube URLs or video IDs.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "url": {"type": "string", "description": "YouTube video URL or video ID"},
+                "lang": {"type": "string", "description": "Language code (default: en)"},
+            },
+            "required": ["url"],
+        },
+    },
+    {
+        "name": "youtube_transcript_timed",
+        "description": "Get YouTube transcript with timestamps for better context and navigation.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "url": {"type": "string", "description": "YouTube video URL"},
+            },
+            "required": ["url"],
+        },
+    },
+    {
+        "name": "youtube_search",
+        "description": "Search YouTube videos using Invidious (no API key required).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "description": "Search query"},
+                "limit": {"type": "integer", "description": "Max results", "default": 10},
+            },
+            "required": ["query"],
+        },
+    },
+    {
+        "name": "youtube_video_info",
+        "description": "Get YouTube video metadata (title, channel, thumbnail).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "url": {"type": "string", "description": "YouTube video URL"},
+            },
+            "required": ["url"],
+        },
+    },
+    {
+        "name": "youtube_batch_transcribe",
+        "description": "Get transcripts for multiple YouTube videos at once.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "urls": {"type": "array", "items": {"type": "string"}, "description": "List of YouTube URLs"},
+            },
+            "required": ["urls"],
+        },
+    },
+    {
+        "name": "youtube_summarize",
+        "description": "Create a summary and key points from YouTube transcript.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "transcript": {"type": "string", "description": "Transcript text"},
+                "max_words": {"type": "integer", "description": "Max words in summary", "default": 500},
+            },
+            "required": ["transcript"],
+        },
+    },
 ]

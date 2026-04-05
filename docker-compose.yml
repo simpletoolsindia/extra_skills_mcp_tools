@@ -1,0 +1,104 @@
+version: "3.8"
+
+services:
+  # ============================================
+  # SEARXNG - Web Search Engine
+  # ============================================
+  searxng:
+    image: searxng/searxng:latest
+    container_name: searxng
+    restart: unless-stopped
+    ports:
+      - "8888:8080"
+    volumes:
+      - ./searxng-data:/etc/searxng
+    environment:
+      - SEARXNG_BASE_URL=https://search.sridharhomelab.in/
+    networks:
+      - searxng-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/search?q=test"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ============================================
+  # LITELLM - LLM Gateway (for local models)
+  # ============================================
+  litellm:
+    image: ghcr.io/berriai/litellm:main
+    container_name: litellm
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./litellm-config:/app/config.yaml
+    command: --config /app/config.yaml --port 8000
+    environment:
+      - DATABASE_URL=sqlite:///litellm.db
+      - LITELLM_MASTER_KEY=sk-your-secure-key-here
+    networks:
+      - searxng-network
+
+  # ============================================
+  # POSTGRES - Database
+  # ============================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=mcp_server
+      - POSTGRES_USER=mcp_user
+      - POSTGRES_PASSWORD=your-secure-db-password
+    networks:
+      - searxng-network
+
+  # ============================================
+  # REDIS - Cache
+  # ============================================
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    networks:
+      - searxng-network
+
+  # ============================================
+  # NGINX - Reverse Proxy
+  # ============================================
+  nginx:
+    image: nginx:alpine
+    container_name: nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/html:/usr/share/nginx/html:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+    depends_on:
+      - searxng
+      - litellm
+    networks:
+      - searxng-network
+
+networks:
+  searxng-network:
+    driver: bridge
+
+volumes:
+  searxng-data:
+  postgres-data:
+  redis-data:

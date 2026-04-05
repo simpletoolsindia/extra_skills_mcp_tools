@@ -36,6 +36,7 @@ from .tools import sequential_thinking
 from .tools import firecrawl
 from .tools import webclaw
 from .tools import browserbase
+from .tools import youtube_transcript
 from .tools import gpt_researcher
 
 logging.basicConfig(level=logging.WARNING)
@@ -138,6 +139,14 @@ TOOL_CALLABLES: dict[str, Any] = {
     "research_add_source": gpt_researcher.add_research_source,
     "research_complete": gpt_researcher.complete_research,
     "research_report": gpt_researcher.get_research_report,
+
+    # === YouTube Transcript ===
+    "youtube_transcript": youtube_transcript.get_transcript_from_url,
+    "youtube_transcript_timed": youtube_transcript.get_transcript_with_timestamp,
+    "youtube_search": youtube_transcript.search_youtube,
+    "youtube_video_info": youtube_transcript.get_video_info,
+    "youtube_batch_transcribe": youtube_transcript.batch_transcribe,
+    "youtube_summarize": youtube_transcript.summarize_transcript,
 
     # === System ===
     "run_command": run_command.run_command,

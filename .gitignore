@@ -30,4 +30,7 @@ Thumbs.db
 
 # Project specific
 searxng-data/
+docker/searxng-data/
+docker/searxxng-template/settings.yml
+docker/searxxng-template/limiter.toml
 *.log
