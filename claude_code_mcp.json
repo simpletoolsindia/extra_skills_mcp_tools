@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "mcp-server": {
+      "command": "/Users/sridhar/.local/bin/python3.12",
+      "args": [
+        "-m",
+        "mcp_server"
+      ],
+      "env": {
+        "SEARXNG_BASE_URL": "http://localhost:8888",
+        "PYTHONPATH": "/Users/sridhar/code/mcp-server/src"
+      }
+    }
+  }
+}
