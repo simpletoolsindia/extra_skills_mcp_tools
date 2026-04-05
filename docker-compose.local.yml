@@ -102,6 +102,21 @@ services:
     networks:
       - local-network
 
+  # ============================================
+  # CHROMADB - Vector Database for RAG
+  # Port: 8000
+  # ============================================
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: chromadb
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - chromadb-data:/chroma/chroma
+    networks:
+      - local-network
+
 networks:
   local-network:
     driver: bridge
@@ -110,3 +125,4 @@ volumes:
   postgres-data:
   redis-data:
   firecrawl-data:
+  chromadb-data:
