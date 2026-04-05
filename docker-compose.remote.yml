@@ -1,5 +1,5 @@
-# Remote (Pi5) - Always On Services
-# Run: docker-compose -f docker-compose.remote.yml up -d
+# Pi5 / Remote Server - Always On Services
+# Run: docker compose -f docker-compose.remote.yml up -d
 
 services:
   # ============================================
@@ -21,9 +21,10 @@ services:
   # FIRECRAWL - Web Scraping (Port 7712)
   # Intelligent content extraction
   # Requires: 6 CPU + 12GB RAM
+  # Image: firecrawl/mcp-server
   # ============================================
   firecrawl:
-    image: ghcr.io/mendableai/firecrawl/main:latest
+    image: firecrawl/mcp-server:latest
     container_name: firecrawl
     restart: unless-stopped
     ports:
@@ -34,18 +35,7 @@ services:
       - PORT=3002
       - HOST=0.0.0.0
       - USE_DB_AUTHENTICATION=false
-    networks:
-      - remote-network
-
-  # ============================================
-  # CLOUDFLARE TUNNEL
-  # Expose services via public URL
-  # ============================================
-  cloudflared:
-    image: cloudflare/cloudflared:latest
-    container_name: cloudflared
-    restart: unless-stopped
-    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TOKEN}
+      - LOG_LEVEL=info
     networks:
       - remote-network
 

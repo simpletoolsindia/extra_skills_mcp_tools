@@ -1,12 +1,13 @@
-# Local (Mac) - On Demand Services
-# Run: docker-compose up -d
+# Mac / Local Machine - On Demand Services
+# Run: docker compose -f docker-compose.local.yml up -d
 
 services:
   # ============================================
   # MCP SERVER (Port 7710)
+  # 86 tools for AI workflows
   # Connects to:
-  # - Remote: SearXNG (Pi5), Firecrawl (Pi5)
-  # - Local: Ollama, PostgreSQL, Redis
+  # - Remote: SearXNG, Firecrawl
+  # - Local: Ollama (host), PostgreSQL, Redis
   # ============================================
   mcp-server:
     build:
@@ -17,11 +18,11 @@ services:
     ports:
       - "7710:7710"
     environment:
-      # Remote (Pi5) - Update PI5_IP
-      - PI5_IP=${PI5_IP:-192.168.1.100}
-      - SEARXNG_BASE_URL=http://${PI5_IP:-192.168.1.100}:7711
-      - FIRECRAWL_HOST=http://${PI5_IP:-192.168.1.100}:7712
-      # Local Ollama
+      # Remote (Pi5) - Update REMOTE_IP
+      - REMOTE_IP=${REMOTE_IP:-192.168.1.100}
+      - SEARXNG_BASE_URL=http://${REMOTE_IP:-192.168.1.100}:7711
+      - FIRECRAWL_HOST=http://${REMOTE_IP:-192.168.1.100}:7712
+      # Local Ollama (on host machine)
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
       # Local services
       - POSTGRES_HOST=postgres

@@ -1,24 +1,24 @@
 #!/bin/bash
-# Local (Mac) Setup - On Demand Services
-# Run this on your Mac
+# Mac / Local Setup - On Demand Services
+# Run: ./start-local.sh
 
 set -e
 
 echo "=== Local Setup (Mac) ==="
 
-# Get Pi5 IP
-echo "Enter Pi5 IP address (check: ping pi5.local):"
-read -r PI5_IP
-PI5_IP=${PI5_IP:-192.168.1.100}
+# Get Remote IP
+echo "Enter Remote (Pi5) IP address (check: ping pi5.local):"
+read -r REMOTE_IP
+REMOTE_IP=${REMOTE_IP:-192.168.1.100}
 
 # Save to .env
 cat > .env << EOF
-PI5_IP=$PI5_IP
+REMOTE_IP=$REMOTE_IP
 EOF
 
-echo "Pi5 IP: $PI5_IP"
+echo "Remote IP: $REMOTE_IP"
 echo "Building and starting local services..."
-docker-compose up -d --build
+docker compose -f docker-compose.local.yml up -d --build
 
 echo ""
 echo "=== Local Services Running! ==="
@@ -31,7 +31,7 @@ echo "  PostgreSQL:  localhost:5432"
 echo "  Redis:       localhost:6379"
 echo ""
 echo "Remote (Pi5):"
-echo "  SearXNG:    http://$PI5_IP:7711"
-echo "  Firecrawl:  http://$PI5_IP:7712"
+echo "  SearXNG:    http://$REMOTE_IP:7711"
+echo "  Firecrawl:  http://$REMOTE_IP:7712"
 echo ""
 echo "Your Ollama (host):  localhost:11434"

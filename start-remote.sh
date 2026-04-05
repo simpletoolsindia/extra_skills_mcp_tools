@@ -1,6 +1,6 @@
 #!/bin/bash
 # Remote (Pi5) Setup - Always On Services
-# Run this on Pi5
+# Run: ./start-remote.sh
 
 set -e
 
@@ -32,15 +32,16 @@ EOF
 # Create Firecrawl data dir
 mkdir -p firecrawl-data
 
-# Cloudflare token
+# Copy .env.example if not exists
 if [ ! -f .env ]; then
-    echo "Enter Cloudflare Tunnel Token (from dash.cloudflare.com):"
-    read -r TOKEN
-    echo "CLOUDFLARE_TOKEN=$TOKEN" > .env
+    cat > .env << 'EOF'
+# Cloudflare Tunnel (optional - uncomment to enable)
+# CLOUDFLARE_TOKEN=your_token_here
+EOF
 fi
 
 echo "Starting remote services..."
-docker-compose -f docker-compose.remote.yml up -d
+docker compose -f docker-compose.remote.yml up -d
 
 echo ""
 echo "=== Remote Services Running! ==="
@@ -51,5 +52,4 @@ echo "Local Access:"
 echo "  SearXNG:   http://localhost:7711"
 echo "  Firecrawl: http://localhost:7712"
 echo ""
-echo "Remote Access:"
-echo "  Via Cloudflare Tunnel (check .env)"
+echo "Enable Cloudflare: Uncomment CLOUDFLARE_TOKEN in .env"
