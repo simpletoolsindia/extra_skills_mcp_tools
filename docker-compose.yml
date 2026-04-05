@@ -1,12 +1,30 @@
-version: "3.8"
-
 # MCP Unified Server - Complete Stack
 # Run: docker-compose up -d
-# Access: http://localhost:7711 (SearXNG)
+# That's it! Everything runs automatically.
+# Run: docker-compose up -d
+# That's it! Everything runs automatically.
 
 services:
   # ============================================
+  # MCP SERVER - Your AI Tool Server
+  # Connects to all services automatically
+  # ============================================
+  mcp-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mcp-server
+    restart: unless-stopped
+    environment:
+      - SEARXNG_BASE_URL=http://searxng:8080
+      - FIRECRAWL_HOST=http://firecrawl:3002
+      - PLAYWRIGHT_HEADLESS=true
+    networks:
+      - mcp-network
+
+  # ============================================
   # SEARXNG - Web Search (Port 7711)
+  # Privacy-respecting search engine
   # ============================================
   searxng:
     image: searxng/searxng:latest
@@ -22,7 +40,8 @@ services:
       - mcp-network
 
   # ============================================
-  # LITELLM - Local LLM Gateway (Port 7713)
+  # LITELEM - Local LLM Gateway (Port 7713)
+  # Connect to Ollama, vLLM, etc.
   # ============================================
   litellm:
     image: ghcr.io/berriai/litellm:main
@@ -65,25 +84,6 @@ services:
       - "7715:6379"
     volumes:
       - redis-data:/data
-    networks:
-      - mcp-network
-
-  # ============================================
-  # NGINX - Reverse Proxy (Ports 80, 443)
-  # ============================================
-  nginx:
-    image: nginx:alpine
-    container_name: nginx
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/conf.d:/etc/nginx/conf.d:ro
-    depends_on:
-      - searxng
-      - litellm
     networks:
       - mcp-network
 

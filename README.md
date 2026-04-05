@@ -1,66 +1,128 @@
 # MCP Unified Server — 86 Tools for Agentic AI
 
-> **100% Self-Hosted** | No API Keys Required | Privacy-First
-
-[![GitHub Stars](https://img.shields.io/github/stars/simpletoolsindia/extra_skills_mcp_tools?style=social)](https://github.com/simpletoolsindia/extra_skills_mcp_tools)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Tools: 86](https://img.shields.io/badge/Tools-86-success?style=flat)](#all-86-tools)
-
----
-
-## What is This?
-
-An **MCP (Model Context Protocol) server** that gives AI assistants superpowers:
-
-| Category | Tools | What It Does |
-|----------|-------|--------------|
-| 🌐 **Web Search** | 4 | Privacy-respecting search (SearXNG) |
-| 📖 **Web Scraping** | 10 | Extract content from any website |
-| 📰 **News** | 14 | Hacker News, Wikipedia, HuggingFace |
-| 🐙 **GitHub** | 6 | Explore repos, issues, code |
-| 💻 **Code** | 4 | Execute Python, JS, Bash safely |
-| 📊 **Data** | 11 | Pandas, Matplotlib, charts |
-| 📺 **YouTube** | 6 | Transcripts, search, summaries |
-| 🧠 **Intelligence** | 17 | Bug tracing, planning, analysis |
-| 💾 **Files** | 9 | Read/write files, convert docs |
-| 🔧 **System** | 5 | Commands, research sessions |
+> **100% Self-Hosted** | **One Command Setup** | Docker Compose
 
 ---
 
 ## Quick Start
 
-### 1. Install Dependencies
-
 ```bash
-# Clone the repo
 git clone https://github.com/simpletoolsindia/extra_skills_mcp_tools.git
 cd extra_skills_mcp_tools
-
-# Install (creates virtual environment)
-pip install -e .
-
-# Install Playwright browser (for JS-heavy pages)
-playwright install chromium
+./start.sh
 ```
 
-### 2. Start Docker Services (Optional but Recommended)
+**That's it!** Everything runs in Docker containers.
 
+---
+
+## What You Get
+
+| Service | Port | Description |
+|---------|------|-------------|
+| **MCP Server** | Container | 86 AI tools |
+| **SearXNG** | 7711 | Privacy search engine |
+| **LiteLLM** | 7713 | Local LLM gateway |
+| **PostgreSQL** | 7714 | Database |
+| **Redis** | 7715 | Cache |
+
+---
+
+## All 86 Tools
+
+### 🌐 Web Search (4)
+`searxng_search`, `search_images`, `search_news`, `searxng_health`
+
+### 📖 Web Scraping (10)
+`fetch_web_content`, `scrape_dynamic`, `extract_structured`, `scrape_freedium`, `firecrawl_scrape`, `firecrawl_crawl`, `webclaw_crawl`, `webclaw_extract_article`, `browserbase_browse`, `list_freedium_articles`
+
+### 📰 News & Research (14)
+- **Hacker News:** `hackernews_top`, `hackernews_new`, `hackernews_best`, `hackernews_ask`, `hackernews_show`, `hackernews_get_comments`, `hackernews_user`
+- **Wikipedia:** `wikipedia_search`, `wikipedia_get_article`, `wikipedia_related`
+- **HuggingFace:** `huggingface_search_models`, `huggingface_search_datasets`, `huggingface_model_info`, `huggingface_trending`
+
+### 🐙 GitHub (6)
+`github_repo`, `github_readme`, `github_issues`, `github_commits`, `github_search_repos`, `github_file_content`
+
+### 💻 Code Execution (4)
+`run_code`, `run_python_snippet`, `test_code_snippet`, `run_command`
+
+### 📊 Data & Charts (11)
+- **Pandas:** `pandas_create`, `pandas_filter`, `pandas_aggregate`, `pandas_correlation`, `pandas_outliers`
+- **Charts:** `plot_line`, `plot_bar`, `plot_pie`, `plot_scatter`, `plot_histogram`, `generate_chart_spec`
+
+### 📺 YouTube (6)
+`youtube_transcript`, `youtube_transcript_timed`, `youtube_search`, `youtube_video_info`, `youtube_batch_transcribe`, `youtube_summarize`
+
+### 🧠 Engineering Intelligence (17)
+- **Analysis:** `engi_task_classify`, `engi_repo_scope_find`, `engi_flow_summarize`, `engi_bug_trace`
+- **Planning:** `engi_implementation_plan`, `engi_poc_plan`, `engi_impact_analyze`, `engi_test_select`
+- **Docs:** `engi_doc_context_build`, `engi_doc_update_plan`
+- **Memory:** `engi_memory_checkpoint`, `engi_memory_restore`
+- **Thinking:** `thinking_session_create`, `thinking_step`, `thinking_revoke`, `thinking_summary`, `analyze_problem`
+
+### 💾 Files (9)
+- **Operations:** `file_read`, `file_write`, `file_list`, `file_info`, `file_search`
+- **Conversion:** `markitdown_html_to_md`, `markitdown_url_to_md`, `markitdown_file_to_md`, `markitdown_md_to_html`
+
+### 🔧 Research (5)
+`research_start`, `research_add_source`, `research_complete`, `research_report`, `searxng_health`
+
+---
+
+## Manual Commands
+
+### Start
 ```bash
-# Start SearXNG web search on port 7711
-docker run -d -p 7711:8080 --name searxng searxng/searxng
+# Create SearXNG config
+mkdir -p searxng-data
+cat > searxng-data/settings.yml << 'EOF'
+use_default_settings: true
+search:
+  safe_search: 0
+  formats:
+    - html
+    - json
+server:
+  secret_key: "change-me"
+  limiter: false
+EOF
+
+# Build and run
+docker-compose up -d --build
 ```
 
-### 3. Run MCP Server
-
+### Stop
 ```bash
-# Set environment
-export SEARXNG_BASE_URL=http://localhost:7711
-
-# Start server
-python -m mcp_server
+docker-compose down
 ```
 
-### 4. Configure Claude Code
+### View Logs
+```bash
+docker-compose logs -f mcp-server
+```
+
+### Restart
+```bash
+docker-compose restart mcp-server
+```
+
+---
+
+## Docker Commands Reference
+
+| Command | Description |
+|---------|-------------|
+| `docker-compose up -d` | Start all containers |
+| `docker-compose down` | Stop all containers |
+| `docker-compose logs -f` | View logs |
+| `docker-compose restart` | Restart services |
+| `docker-compose ps` | Check status |
+| `docker-compose build --no-cache` | Rebuild |
+
+---
+
+## Claude Code Setup
 
 Add to `~/.claude/settings.json`:
 
@@ -68,225 +130,17 @@ Add to `~/.claude/settings.json`:
 {
   "mcpServers": {
     "mcp-server": {
-      "command": "/usr/local/bin/python3",
-      "args": ["-m", "mcp_server"],
-      "env": {
-        "SEARXNG_BASE_URL": "http://localhost:7711"
-      }
+      "command": "docker",
+      "args": ["exec", "-i", "mcp-server", "python", "-m", "mcp_server"]
     }
   }
 }
 ```
 
-**Find your Python path:** `which python3` (Mac/Linux) or `where python` (Windows)
-
----
-
-## Port Configuration
-
-Docker services use ports **7711 onwards**:
-
-| Port | Service | Resources | Purpose |
-|------|---------|-----------|---------|
-| 7711 | SearXNG | Lightweight | Web search engine |
-| 7712 | Firecrawl | ⚠️ 6 CPU + 12GB | Advanced scraping (optional) |
-| 7713 | LiteLLM | Lightweight | Local LLM gateway |
-| 7714 | PostgreSQL | Lightweight | Database |
-| 7715 | Redis | Lightweight | Cache |
-
-### Firecrawl (Optional)
-
-**Requires:** 6 CPU cores + 12GB RAM
-
-Not needed for Pi5 or lightweight servers. Use built-in scrapers instead:
-
-- **Playwright** — JS-heavy pages (already installed)
-- **Scrapling** — Fast CSS extraction (built-in)
-- **Webclaw** — Article extraction (built-in)
-
----
-
-## All 86 Tools
-
-### 🌐 Web Search (4)
-
-| Tool | Description |
-|------|-------------|
-| `searxng_search` | Search the web (privacy-respecting) |
-| `search_images` | Find images |
-| `search_news` | Get news articles |
-| `searxng_health` | Check if search is working |
-
-### 📖 Web Scraping (10)
-
-| Tool | Description |
-|------|-------------|
-| `fetch_web_content` | Get clean text from URL |
-| `scrape_dynamic` | JavaScript-heavy pages (Playwright) |
-| `extract_structured` | Extract articles/products (Scrapling) |
-| `scrape_freedium` | Read Medium articles free |
-| `firecrawl_scrape` | Advanced scraping (Firecrawl - optional) |
-| `firecrawl_crawl` | Multi-page crawling |
-| `webclaw_crawl` | Custom CSS selector extraction |
-| `webclaw_extract_article` | Extract article content |
-| `browserbase_browse` | Browser automation fallback |
-
-### 📰 News & Research (14)
-
-**Hacker News (7):**
-| Tool | Description |
-|------|-------------|
-| `hackernews_top` | Top stories |
-| `hackernews_new` | Newest stories |
-| `hackernews_best` | Best stories |
-| `hackernews_ask` | Ask HN posts |
-| `hackernews_show` | Show HN posts |
-| `hackernews_get_comments` | Story comments |
-| `hackernews_user` | User profile |
-
-**Wikipedia (3):**
-| Tool | Description |
-|------|-------------|
-| `wikipedia_search` | Search Wikipedia |
-| `wikipedia_get_article` | Get article content |
-| `wikipedia_related` | Related articles |
-
-**HuggingFace (4):**
-| Tool | Description |
-|------|-------------|
-| `huggingface_search_models` | Find AI models |
-| `huggingface_search_datasets` | Find datasets |
-| `huggingface_model_info` | Model details |
-| `huggingface_trending` | Trending models |
-
-### 🐙 GitHub (6)
-
-| Tool | Description |
-|------|-------------|
-| `github_repo` | Repository info |
-| `github_readme` | Get README |
-| `github_issues` | List issues |
-| `github_commits` | Recent commits |
-| `github_search_repos` | Search repositories |
-| `github_file_content` | Get file contents |
-
-### 💻 Code Execution (4)
-
-| Tool | Description |
-|------|-------------|
-| `run_code` | Execute code safely |
-| `run_python_snippet` | Python with imports |
-| `test_code_snippet` | Run & verify output |
-| `run_command` | Run shell commands |
-
-**Supported:** Python, JavaScript (Node.js), Bash
-
-### 📊 Data & Charts (11)
-
-**Pandas (5):**
-| Tool | Description |
-|------|-------------|
-| `pandas_create` | Create DataFrame |
-| `pandas_filter` | Filter data |
-| `pandas_aggregate` | Group & aggregate |
-| `pandas_correlation` | Compute correlations |
-| `pandas_outliers` | Detect outliers |
-
-**Charts (6):**
-| Tool | Description |
-|------|-------------|
-| `plot_line` | Line charts |
-| `plot_bar` | Bar charts |
-| `plot_pie` | Pie charts |
-| `plot_scatter` | Scatter plots |
-| `plot_histogram` | Histograms |
-| `generate_chart_spec` | Ant Design specs |
-
-### 📺 YouTube (6)
-
-| Tool | Description |
-|------|-------------|
-| `youtube_transcript` | Get transcript |
-| `youtube_transcript_timed` | Transcript with timestamps |
-| `youtube_search` | Search videos |
-| `youtube_video_info` | Video metadata |
-| `youtube_batch_transcribe` | Multiple videos |
-| `youtube_summarize` | Create summary |
-
-### 🧠 Engineering Intelligence (17)
-
-> **97% token reduction** for large codebases
-
-**Analysis (4):**
-| Tool | Description |
-|------|-------------|
-| `engi_task_classify` | Classify task type |
-| `engi_repo_scope_find` | Find relevant files |
-| `engi_flow_summarize` | Compact flow description |
-| `engi_bug_trace` | Pinpoint bug causes |
-
-**Planning (4):**
-| Tool | Description |
-|------|-------------|
-| `engi_implementation_plan` | Step-by-step plan |
-| `engi_poc_plan` | POC scaffold |
-| `engi_impact_analyze` | Estimate blast radius |
-| `engi_test_select` | Minimum test set |
-
-**Documentation (2):**
-| Tool | Description |
-|------|-------------|
-| `engi_doc_context_build` | Build doc context |
-| `engi_doc_update_plan` | Find docs to update |
-
-**Memory (2):**
-| Tool | Description |
-|------|-------------|
-| `engi_memory_checkpoint` | Save task state |
-| `engi_memory_restore` | Restore checkpoint |
-
-**Sequential Thinking (5):**
-| Tool | Description |
-|------|-------------|
-| `thinking_session_create` | Start session |
-| `thinking_step` | Add thought |
-| `thinking_revoke` | Revise thought |
-| `thinking_summary` | Get summary |
-| `analyze_problem` | Structured analysis |
-
-### 💾 File System (9)
-
-**File Operations (5):**
-| Tool | Description |
-|------|-------------|
-| `file_read` | Read file |
-| `file_write` | Write file |
-| `file_list` | List directory |
-| `file_info` | File details |
-| `file_search` | Search files |
-
-**Document Conversion (4):**
-| Tool | Description |
-|------|-------------|
-| `markitdown_html_to_md` | HTML → Markdown |
-| `markitdown_url_to_md` | URL → Markdown |
-| `markitdown_file_to_md` | File → Markdown |
-| `markitdown_md_to_html` | Markdown → HTML |
-
-### 🔧 System (5)
-
-**Research (4):**
-| Tool | Description |
-|------|-------------|
-| `research_start` | Start research |
-| `research_add_source` | Add source |
-| `research_complete` | Complete research |
-| `research_report` | Get report |
-
-**System (1):**
-| Tool | Description |
-|------|-------------|
-| `searxng_health` | Health check |
+Or run MCP directly:
+```bash
+docker exec -it mcp-server python -m mcp_server
+```
 
 ---
 
@@ -294,109 +148,53 @@ Not needed for Pi5 or lightweight servers. Use built-in scrapers instead:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `SEARXNG_BASE_URL` | http://localhost:7711 | SearXNG search URL |
-| `FIRECRAWL_HOST` | http://localhost:7712 | Firecrawl URL (optional) |
-| `PLAYWRIGHT_HEADLESS` | true | Headless browser mode |
-| `BROWSER_TIMEOUT` | 15 | Page load timeout (seconds) |
-| `GITHUB_TOKEN` | - | GitHub API token (optional) |
-| `HF_TOKEN` | - | HuggingFace token (optional) |
+| `SEARXNG_BASE_URL` | http://searxng:8080 | SearXNG URL |
+| `FIRECRAWL_HOST` | http://firecrawl:3002 | Firecrawl URL (optional) |
+| `PLAYWRIGHT_HEADLESS` | true | Headless browser |
 
 ---
 
-## Docker Deployment
-
-### Pi5 / Dokploy
+## Pi5 / Dokploy Deployment
 
 ```bash
-# 1. Clone
+# Clone
 git clone https://github.com/simpletoolsindia/extra_skills_mcp_tools.git
 cd extra_skills_mcp_tools
 
-# 2. SSL Certificates
+# SSL Certificates
 sudo certbot certonly --standalone -d search.sridharhomelab.in
 
-# 3. Copy certificates
-sudo cp /etc/letsencrypt/live/search.sridharhomelab.in/fullchain.pem docker/nginx/certs/cert.pem
-sudo cp /etc/letsencrypt/live/search.sridharhomelab.in/privkey.pem docker/nginx/certs/key.pem
+# Copy certs
+sudo cp /etc/letsencrypt/.../*.pem docker/nginx/certs/
 
-# 4. Deploy all services
-cd docker
-docker-compose up -d
-```
-
-### Access URLs
-
-| Service | URL |
-|---------|-----|
-| Search | https://search.sridharhomelab.in |
-| API Gateway | https://api.sridharhomelab.in |
-
----
-
-## Troubleshooting
-
-### "SearXNG not found"
-```bash
-# Start SearXNG on port 7711
-docker run -d -p 7711:8080 --name searxng searxng/searxng
-
-# Verify
-curl "http://localhost:7711/search?q=test&format=json"
-```
-
-### "Module not found"
-```bash
-pip install -e .
-```
-
-### Playwright errors
-```bash
-playwright install chromium
-```
-
-### Permission denied
-```bash
-chmod +x install.sh
+# Deploy
+./start.sh
 ```
 
 ---
 
-## Example Usage
+## Examples
 
-### Research: "Latest AI developments"
+### Search the Web
 ```
-1. searxng_search("AI agents 2024 developments")
-2. wikipedia_search("Artificial Intelligence")
-3. hackernews_top(limit=10)
-4. huggingface_trending()
+searxng_search("latest AI news 2024")
 ```
 
-### Bug Fix: "Login crash"
+### Get YouTube Transcript
 ```
-1. engi_task_classify("Fix login crash when password empty", ["auth"])
-2. engi_repo_scope_find("/project", "login bug", "bug")
-3. engi_bug_trace(["src/auth.py"], "crashes when password empty")
-4. engi_implementation_plan("Fix password validation", scope=["src/auth.py"])
+youtube_transcript("https://youtube.com/watch?v=XYZ123")
 ```
 
-### YouTube: "Get video transcript"
+### Bug Analysis
 ```
-1. youtube_transcript("https://youtube.com/watch?v=XYZ123")
-2. youtube_summarize(transcript, max_words=500)
+engi_task_classify("Fix login crash", ["auth"])
+engi_bug_trace(["src/auth.py"], "crashes empty password")
 ```
 
 ---
 
 ## License
 
-MIT — Free for personal and commercial use.
+MIT - Free for personal and commercial use.
 
-## Credits
-
-Built for the AI agent community.
-
-Tools: SearXNG, Playwright, Scrapling, Pandas, Matplotlib, Invidious, engi-mcp
-
----
-
-⭐ **Star on GitHub if this helped you!**
+⭐ **Star on GitHub!**
