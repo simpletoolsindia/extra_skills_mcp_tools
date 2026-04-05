@@ -1,65 +1,61 @@
 # MCP Unified Server — 86 Tools for Agentic AI
 
-> **Split Architecture** | Pi5 (Always On) + Mac (On Demand) | Cloudflare Remote Access
+> **Split Setup** | Pi5 (Remote) + Mac (Local)
 
 ---
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                     YOUR MAC                             │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐     │
-│  │ MCP Server  │  │   Ollama    │  │  Playwright │     │
-│  │   :7710     │  │   :11434    │  │             │     │
-│  └──────┬──────┘  └─────────────┘  └─────────────┘     │
-│         │                                                │
-└─────────┼──────────────────────────────────────────────┘
-          │ HTTP
-          ▼
-┌─────────────────────────────────────────────────────────┐
-│                      PI5 (Always On)                     │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐     │
-│  │  SearXNG    │  │ PostgreSQL  │  │    Redis    │     │
-│  │   :7711     │  │   :7714     │  │   :7715     │     │
-│  └─────────────┘  └─────────────┘  └─────────────┘     │
-│         │                                                │
-│  ┌─────────────┐                                        │
-│  │ Cloudflare  │ ──────► Remote Access URL              │
-│  │  Tunnel     │                                        │
-│  └─────────────┘                                        │
-└─────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│                         PI5 (Always On)                       │
+│                                                              │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────┐     │
+│  │   SearXNG   │  │  Firecrawl  │  │  Cloudflare     │     │
+│  │   :7711     │  │   :7712     │  │  Tunnel         │     │
+│  └─────────────┘  └─────────────┘  └─────────────────┘     │
+│                                                              │
+│  Low power (~5W), runs 24/7                                  │
+└──────────────────────────────────────────────────────────────┘
+              │ HTTP                              │
+              ▼                                   ▼
+┌──────────────────────────────────────────────────────────────┐
+│                         MAC (On Demand)                       │
+│                                                              │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐          │
+│  │ MCP Server  │  │ PostgreSQL  │  │    Redis    │          │
+│  │   :7710     │  │   :5432     │  │   :6379     │          │
+│  └─────────────┘  └─────────────┘  └─────────────┘          │
+│                                                              │
+│  ┌─────────────┐  ┌─────────────┐                           │
+│  │  Ollama     │  │  Playwright │                          │
+│  │ localhost   │  │  (browser)  │                           │
+│  └─────────────┘  └─────────────┘                           │
+└──────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Quick Setup
+## Setup
 
-### 1. Pi5 Setup (Always On)
+### 1. Pi5 (Run Once)
 
 ```bash
-# On Pi5
 git clone https://github.com/simpletoolsindia/extra_skills_mcp_tools.git
 cd extra_skills_mcp_tools
+./start-remote.sh
 
-# Optional: Cloudflare Tunnel
-# 1. Create tunnel at dash.cloudflare.com
-# 2. Copy tunnel token
-# 3. echo "CLOUDFLARE_TOKEN=your_token" > .env
-
-./start-pi5.sh
+# Enter Cloudflare Tunnel Token (get from dash.cloudflare.com)
 ```
 
-### 2. Mac Setup (Your Machine)
+### 2. Mac (Run Once)
 
 ```bash
-# On Mac
 git clone https://github.com/simpletoolsindia/extra_skills_mcp_tools.git
 cd extra_skills_mcp_tools
+./start-local.sh
 
-# Enter Pi5 IP (check Pi5 with: ping pi5.local)
-./start.sh
-# Enter Pi5 IP when asked (e.g., 192.168.1.100)
+# Enter Pi5 IP (e.g., 192.168.1.100)
 ```
 
 ---
@@ -68,47 +64,63 @@ cd extra_skills_mcp_tools
 
 ### Pi5 (Always On)
 
-| Service | Port | Local Access | Remote Access |
-|---------|------|--------------|---------------|
-| SearXNG | 7711 | http://pi5.local:7711 | Cloudflare URL |
-| PostgreSQL | 7714 | pi5.local:7714 | Via tunnel |
-| Redis | 7715 | pi5.local:7715 | Via tunnel |
-| Cloudflare | - | - | *.trycloudflare.com |
+| Service | Port | Description | Remote |
+|---------|------|-------------|--------|
+| **SearXNG** | 7711 | Web search | ✅ Cloudflare |
+| **Firecrawl** | 7712 | Smart scraping | ✅ Cloudflare |
 
-### Mac (Your Machine)
+### Mac (On Demand)
 
 | Service | Port | Description |
 |---------|------|-------------|
-| MCP Server | 7710 | TCP for remote access |
-| Ollama | 11434 | Local LLM (already running) |
+| **MCP Server** | 7710 | 86 tools (TCP) |
+| **PostgreSQL** | 5432 | Database |
+| **Redis** | 6379 | Cache |
+| **Ollama** | 11434 | Your LLM (host) |
+| **Playwright** | - | Browser |
+
+---
+
+## Commands
+
+### Pi5
+```bash
+# Start
+docker-compose -f docker-compose.remote.yml up -d
+
+# Stop
+docker-compose -f docker-compose.remote.yml down
+
+# Logs
+docker-compose -f docker-compose.remote.yml logs -f
+```
+
+### Mac
+```bash
+# Start
+docker-compose up -d
+
+# Stop
+docker-compose down
+
+# Logs
+docker-compose logs -f mcp-server
+```
 
 ---
 
 ## Remote Access
 
-### Option 1: SSH Tunnel (Recommended)
+### Via Cloudflare (Pi5 Services)
+Access SearXNG/Firecrawl from anywhere via Cloudflare URL.
 
+### Via SSH Tunnel (Full Access)
 ```bash
-# Tunnel MCP port to your Mac
+# Tunnel MCP port to Mac
 ssh -L 7710:localhost:7710 pi@pi5.local
-
-# Then access MCP normally on Mac
 ```
 
-### Option 2: Cloudflare Tunnel
-
-Access SearXNG remotely via Cloudflare:
-
-```bash
-# Configure tunnel at dash.cloudflare.com
-# Point to: http://pi5.local:7711
-# Access at: https://mcp-search.trycloudflare.com
-```
-
-### Option 3: Claude Code Remote
-
-On your local Mac, add to `~/.claude/settings.json`:
-
+### Claude Code
 ```json
 {
   "mcpServers": {
@@ -124,67 +136,18 @@ On your local Mac, add to `~/.claude/settings.json`:
 
 ## All 86 Tools
 
-### 🌐 Web Search (4)
-`searxng_search`, `search_images`, `search_news`, `searxng_health`
-
-### 📖 Web Scraping (10)
-`fetch_web_content`, `scrape_dynamic`, `extract_structured`, `scrape_freedium`, `firecrawl_scrape`, `firecrawl_crawl`, `webclaw_crawl`, `webclaw_extract_article`, `browserbase_browse`, `list_freedium_articles`
-
-### 📰 News & Research (14)
-- **Hacker News:** 7 tools
-- **Wikipedia:** 3 tools
-- **HuggingFace:** 4 tools
-
-### 🐙 GitHub (6)
-`github_repo`, `github_readme`, `github_issues`, `github_commits`, `github_search_repos`, `github_file_content`
-
-### 💻 Code Execution (4)
-`run_code`, `run_python_snippet`, `test_code_snippet`, `run_command`
-
-### 📊 Data & Charts (11)
-- **Pandas:** 5 tools
-- **Charts:** 6 tools
-
-### 📺 YouTube (6)
-`youtube_transcript`, `youtube_transcript_timed`, `youtube_search`, `youtube_video_info`, `youtube_batch_transcribe`, `youtube_summarize`
-
-### 🧠 Engineering Intelligence (17)
-`engi_task_classify`, `engi_repo_scope_find`, `engi_flow_summarize`, `engi_bug_trace`, `engi_implementation_plan`, `engi_poc_plan`, `engi_impact_analyze`, `engi_test_select`, `engi_doc_context_build`, `engi_doc_update_plan`, `engi_memory_checkpoint`, `engi_memory_restore`, `thinking_session_create`, `thinking_step`, `thinking_revoke`, `thinking_summary`, `analyze_problem`
-
-### 💾 Files (9)
-- **Operations:** 5 tools
-- **Conversion:** 4 tools
-
-### 🔧 Research (5)
-`research_start`, `research_add_source`, `research_complete`, `research_report`, `searxng_health`
-
----
-
-## Docker Commands
-
-### Pi5
-```bash
-# Start
-docker-compose -f docker-compose.pi5.yml up -d
-
-# Stop
-docker-compose -f docker-compose.pi5.yml down
-
-# Logs
-docker-compose -f docker-compose.pi5.yml logs -f
-```
-
-### Mac
-```bash
-# Start
-docker-compose up -d
-
-# Stop
-docker-compose down
-
-# Logs
-docker-compose logs -f
-```
+| Category | Tools |
+|----------|-------|
+| 🌐 Web Search | 4 |
+| 📖 Web Scraping | 10 |
+| 📰 News & Research | 14 |
+| 🐙 GitHub | 6 |
+| 💻 Code Execution | 4 |
+| 📊 Data & Charts | 11 |
+| 📺 YouTube | 6 |
+| 🧠 Intelligence | 17 |
+| 💾 Files | 9 |
+| 🔧 Research | 5 |
 
 ---
 
@@ -197,25 +160,19 @@ CLOUDFLARE_TOKEN=your_cloudflare_tunnel_token
 
 ### Mac (.env)
 ```env
-PI5_IP=192.168.1.100  # Your Pi5 IP
+PI5_IP=192.168.1.100
 ```
 
 ---
 
-## Low Power Usage
+## Power Usage
 
-**Pi5 runs only:**
-- SearXNG (web search)
-- PostgreSQL (database)
-- Redis (cache)
-- Cloudflare tunnel
+| Machine | Services | Power |
+|---------|----------|-------|
+| Pi5 | SearXNG, Firecrawl | ~5W |
+| Mac | MCP, Postgres, Redis | Only when running |
 
-**Mac runs:**
-- MCP Server (when needed)
-- Ollama (your LLM)
-- Playwright (browser)
-
-This means Pi5 uses minimal power (~5W) and Mac handles heavy workloads only when needed.
+**Result:** Pi5 stays on 24/7 (cheap), Mac only uses power when you work.
 
 ---
 

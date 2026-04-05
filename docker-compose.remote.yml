@@ -1,0 +1,58 @@
+# Remote (Pi5) - Always On Services
+# Run: docker-compose -f docker-compose.remote.yml up -d
+
+services:
+  # ============================================
+  # SEARXNG - Web Search (Port 7711)
+  # Privacy-respecting search engine
+  # ============================================
+  searxng:
+    image: searxng/searxng:latest
+    container_name: searxng
+    restart: unless-stopped
+    ports:
+      - "7711:8080"
+    volumes:
+      - ./searxng-data:/etc/searxng
+    networks:
+      - remote-network
+
+  # ============================================
+  # FIRECRAWL - Web Scraping (Port 7712)
+  # Intelligent content extraction
+  # Requires: 6 CPU + 12GB RAM
+  # ============================================
+  firecrawl:
+    image: ghcr.io/mendableai/firecrawl/main:latest
+    container_name: firecrawl
+    restart: unless-stopped
+    ports:
+      - "7712:3002"
+    volumes:
+      - ./firecrawl-data:/app/data
+    environment:
+      - PORT=3002
+      - HOST=0.0.0.0
+      - USE_DB_AUTHENTICATION=false
+    networks:
+      - remote-network
+
+  # ============================================
+  # CLOUDFLARE TUNNEL
+  # Expose services via public URL
+  # ============================================
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TOKEN}
+    networks:
+      - remote-network
+
+networks:
+  remote-network:
+    driver: bridge
+
+volumes:
+  searxng-data:
+  firecrawl-data:

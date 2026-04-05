@@ -1,13 +1,12 @@
-# Mac - MCP Server
-# Connects to Pi5 for database services
-# Uses local Ollama for LLM
+# Local (Mac) - On Demand Services
+# Run: docker-compose up -d
 
 services:
   # ============================================
-  # MCP SERVER
+  # MCP SERVER (Port 7710)
   # Connects to:
-  # - Pi5: SearXNG, PostgreSQL, Redis
-  # - Mac: Ollama (localhost:11434)
+  # - Remote: SearXNG (Pi5), Firecrawl (Pi5)
+  # - Local: Ollama, PostgreSQL, Redis
   # ============================================
   mcp-server:
     build:
@@ -16,26 +15,72 @@ services:
     container_name: mcp-server
     restart: unless-stopped
     ports:
-      - "7710:7710"  # Remote access
+      - "7710:7710"
     environment:
-      # Pi5 services (change PI5_IP to your Pi5 IP)
+      # Remote (Pi5) - Update PI5_IP
       - PI5_IP=${PI5_IP:-192.168.1.100}
       - SEARXNG_BASE_URL=http://${PI5_IP:-192.168.1.100}:7711
-      - POSTGRES_HOST=${PI5_IP:-192.168.1.100}
-      - POSTGRES_PORT=7714
-      - REDIS_HOST=${PI5_IP:-192.168.1.100}
-      - REDIS_PORT=7715
-      # Mac: Ollama
-      - OLLAMA_HOST=host.docker.internal:11434
+      - FIRECRAWL_HOST=http://${PI5_IP:-192.168.1.100}:7712
+      # Local Ollama
       - OLLAMA_BASE_URL=http://host.docker.internal:11434
-      # MCP Server
+      # Local services
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=mcp_server
+      - POSTGRES_USER=mcp_user
+      - POSTGRES_PASSWORD=postgres
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      # MCP
       - MCP_SERVER_PORT=7710
       - PLAYWRIGHT_HEADLESS=true
+    depends_on:
+      - postgres
+      - redis
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:
-      - mcp-network
+      - local-network
+
+  # ============================================
+  # POSTGRESQL (Port 5432)
+  # Database
+  # ============================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=mcp_server
+      - POSTGRES_USER=mcp_user
+      - POSTGRES_PASSWORD=postgres
+    networks:
+      - local-network
+
+  # ============================================
+  # REDIS (Port 6379)
+  # Cache
+  # ============================================
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    networks:
+      - local-network
 
 networks:
-  mcp-network:
+  local-network:
     driver: bridge
+
+volumes:
+  postgres-data:
+  redis-data:
