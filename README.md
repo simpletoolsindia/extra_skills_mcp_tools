@@ -1,192 +1,185 @@
-# MCP Server — Local LLM Tool Ecosystem
+# MCP Unified Server — 68 Tools for Agentic AI
 
-API-free MCP server enabling local LLMs (Qwen, Gemma, DeepSeek, GLM) to:
-- Perform web search via **SearXNG**
-- Fetch and transform web content
-- Execute controlled system commands
+A comprehensive Model Context Protocol server with 68+ tools for local LLM agents and AI workflows.
 
-## Prerequisites
+## Features
 
-### SearXNG (required for web search)
+- **Native SearXNG** - Full-featured web search with categories, engines, time filters
+- **Web Scraping** - Playwright, Scrapling, Firecrawl, Webclaw, Browserbase, Freedium
+- **Search Engines** - Hacker News, Wikipedia, Hugging Face
+- **GitHub** - Repos, issues, PRs, code search
+- **File System** - Safe read/write with security restrictions
+- **Code Execution** - Python, JavaScript, Bash sandboxed
+- **Data Analysis** - Pandas operations, filtering, aggregation, correlation
+- **Visualization** - Matplotlib charts, Ant Design specs
+- **Document Conversion** - HTML ↔ Markdown, file extraction
+- **Reasoning** - Sequential thinking, problem analysis
+- **Research** - Multi-source research orchestration
 
-**Start via Docker:**
-
-```bash
-docker run -d \
-  -p 8888:8080 \
-  -v "$(pwd)/searxng-data:/etc/searxng" \
-  --name searxng \
-  searxng/searxng
-```
-
-**Configure SearXNG** by creating `searxng-data/settings.yml`:
-
-```yaml
-use_default_settings: true
-
-general:
-  instance_name: "MCP Server Search"
-
-search:
-  safe_search: 0
-  formats:
-    - html
-    - json
-
-server:
-  secret_key: "your-secret-key-here"
-  limiter: false
-```
-
-Also create `searxng-data/limiter.toml`:
-
-```toml
-[botdetection]
-trusted_proxies = ['127.0.0.0/8', '::1']
-
-[botdetection.ip_limit]
-filter_link_local = false
-link_token = false
-
-[botdetection.ip_lists]
-pass_ip = ['127.0.0.0/8', '::1']
-```
-
-**Restart after config:**
-```bash
-docker stop searxng && docker rm searxng
-docker run -d -p 8888:8080 \
-  -v "$(pwd)/searxng-data:/etc/searxng" \
-  --name searxng searxng/searxng
-```
-
-### Python Dependencies
+## Quick Start
 
 ```bash
-uv venv .venv && source .venv/bin/activate
-uv pip install -e .
-```
+# Clone and install
+git clone https://github.com/simpletoolsindia/extra_skills_mcp_tools.git
+cd extra_skills_mcp_tools
+./install.sh
 
-## Usage
-
-```bash
+# Start server
 SEARXNG_BASE_URL=http://localhost:8888 python -m mcp_server
 ```
 
-Or with the installed CLI:
+## Tools by Category
 
-```bash
-SEARXNG_BASE_URL=http://localhost:8888 mcp-server
-```
-
-## Tools
-
+### 🔍 SearXNG (4 tools)
 | Tool | Description |
 |------|-------------|
-| `web_search` | Search the web via local SearXNG |
-| `fetch_web_content` | Extract clean content from a URL (readability-lxml) |
-| `scrape_dynamic` | Scrape JavaScript-heavy pages using Playwright headless browser |
-| `extract_structured` | Extract structured data (articles, products, tables) using CSS selectors |
-| `scrape_freedium` | Scrape Medium articles via Freedium (bypasses paywall) |
-| `list_freedium_articles` | List articles available on Freedium homepage |
-| `run_code` | Run LLM-generated code in sandboxed environment |
-| `run_python_snippet` | Run Python code with pre-loaded common imports |
-| `test_code_snippet` | Run code and verify expected output |
-| `run_command` | Execute whitelisted system commands |
+| `searxng_search` | Web search with categories, engines, time range |
+| `search_images` | Image search |
+| `search_news` | News search |
+| `searxng_health` | Health check |
 
-### New Tools Added
+### 🌐 Web Scraping (10 tools)
+| Tool | Description |
+|------|-------------|
+| `fetch_web_content` | Clean URL extraction |
+| `scrape_dynamic` | JavaScript pages (Playwright) |
+| `extract_structured` | CSS-based extraction |
+| `scrape_freedium` | Medium articles free |
+| `list_freedium_articles` | List Freedium articles |
+| `firecrawl_scrape` | Firecrawl API |
+| `firecrawl_crawl` | Multi-page crawl |
+| `webclaw_crawl` | CSS selector crawl |
+| `webclaw_extract_article` | Article extraction |
+| `browserbase_browse` | Cloud browser |
 
-#### Playwright Scraping (`scrape_dynamic`)
-For pages that require JavaScript execution (SPAs, infinite scroll, etc.):
-```python
-{
-    "url": "https://example.com",  # required
-    "selector": ".main-content",   # optional CSS selector
-    "wait_for": ".loaded",         # optional - wait for element
-    "max_length": 15000            # max characters
-}
-```
-Requires: `pip install playwright && playwright install chromium`
+### 📰 News & Articles (9 tools)
+| Tool | Description |
+|------|-------------|
+| `hackernews_top` | Top HN stories |
+| `hackernews_new` | New HN stories |
+| `hackernews_best` | Best HN stories |
+| `hackernews_ask` | Ask HN |
+| `hackernews_show` | Show HN |
+| `hackernews_get_comments` | Story comments |
+| `hackernews_user` | HN user info |
+| `wikipedia_search` | Wikipedia search |
+| `wikipedia_get_article` | Wikipedia article |
 
-#### Scrapling Extraction (`extract_structured`)
-Fast CSS-based extraction for structured data:
-```python
-{
-    "html_content": "...",         # raw HTML
-    "extraction_type": "article",  # article|ecommerce|table|links
-    "selector": ".content",        # optional CSS selector
-    "custom_selector": "a"         # for links pattern
-}
-```
-Requires: `pip install scrapling`
+### 🐙 GitHub (6 tools)
+| Tool | Description |
+|------|-------------|
+| `github_repo` | Repository info |
+| `github_readme` | README content |
+| `github_issues` | Issue list |
+| `github_commits` | Commit history |
+| `github_search_repos` | Repo search |
+| `github_file_content` | File content |
 
-**Environment variables:**
-- `PLAYWRIGHT_HEADLESS=true` (default) - Run browser in headless mode
-- `BROWSER_TIMEOUT=15` - Page load timeout in seconds
+### 📁 File System (5 tools)
+| Tool | Description |
+|------|-------------|
+| `file_read` | Read file |
+| `file_write` | Write file |
+| `file_list` | List directory |
+| `file_info` | File info |
+| `file_search` | Search files |
 
-#### Freedium Scraping (`scrape_freedium`, `list_freedium_articles`)
-Access Medium articles without paywall:
-```python
-{
-    "url": "https://freedium-mirror.cfd/ARTICLE_ID",  # or just "/ARTICLE_ID"
-    "max_length": 20000  # optional
-}
-```
-Returns: title, author, publication, date, content, tags
+### 💻 Code Execution (3 tools)
+| Tool | Description |
+|------|-------------|
+| `run_code` | Sandbox execution |
+| `run_python_snippet` | Python with imports |
+| `test_code_snippet` | Validate output |
 
-#### Code Sandbox (`run_code`, `run_python_snippet`, `test_code_snippet`)
-Run LLM-generated code safely:
-```python
-{
-    "code": "print('Hello, World!')",
-    "language": "python",  # python, javascript, bash
-    "timeout": 30,
-    "args": []  # optional command-line args
-}
-```
-- Security: Blocks dangerous patterns (os.system, eval, etc.)
-- Timeout: Max 60 seconds (configurable via SANDBOX_TIMEOUT env)
-- Languages: Python, JavaScript (Node.js), Bash
+### 📊 Data Analysis (5 tools)
+| Tool | Description |
+|------|-------------|
+| `pandas_create` | Create DataFrame |
+| `pandas_filter` | Filter data |
+| `pandas_aggregate` | Aggregate |
+| `pandas_correlation` | Correlation matrix |
+| `pandas_outliers` | Outlier detection |
 
-## Security
+### 📈 Visualization (6 tools)
+| Tool | Description |
+|------|-------------|
+| `plot_line` | Line chart |
+| `plot_bar` | Bar chart |
+| `plot_pie` | Pie chart |
+| `plot_scatter` | Scatter plot |
+| `plot_histogram` | Histogram |
+| `generate_chart_spec` | Ant Design spec |
 
-- `run_command` uses strict allowlist — only `ls`, `cp`, `mv`, `rm`, `cat` by default
-- Read-only commands (`ls`, `cat`) can use absolute paths
-- Write commands (`rm`, `cp`, `mv`) are restricted to relative paths
-- `rm` blocks dangerous flags (`-rf`, `-r`) and critical paths (`/`, `/tmp`, `/etc`)
-- All commands: no shell metacharacters, no env vars, no path traversal
-- Subprocess isolation with 10s timeout, no shell=True
+### 📝 Document Conversion (4 tools)
+| Tool | Description |
+|------|-------------|
+| `markitdown_html_to_md` | HTML to Markdown |
+| `markitdown_url_to_md` | URL to Markdown |
+| `markitdown_file_to_md` | File to Markdown |
+| `markitdown_md_to_html` | Markdown to HTML |
 
-## Testing
+### 🧠 Reasoning (5 tools)
+| Tool | Description |
+|------|-------------|
+| `thinking_session_create` | New session |
+| `thinking_step` | Add step |
+| `thinking_revoke` | Revise step |
+| `thinking_summary` | Get summary |
+| `analyze_problem` | Structured analysis |
 
+### 🔬 Research (4 tools)
+| Tool | Description |
+|------|-------------|
+| `research_start` | Start research |
+| `research_add_source` | Add source |
+| `research_complete` | Complete |
+| `research_report` | Get report |
+
+## Installation
+
+### Prerequisites
+- Python 3.11+
+- Docker (for SearXNG)
+- uv or pip
+
+### 1. Start SearXNG (optional)
 ```bash
-# All tests (requires network)
-python -m pytest tests/ -v
-
-# Offline verification only
-SKIP_NETWORK=1 python tests/verify.py
-
-# Live verification
-python tests/verify.py
+docker run -d -p 8888:8080 --name searxng searxng/searxng
 ```
 
-## Claude Code Integration
+### 2. Install
+```bash
+./install.sh
+```
 
+### 3. Configure Claude Code
 Add to `~/.claude/settings.json`:
-
 ```json
 {
   "mcpServers": {
     "mcp-server": {
-      "command": "/Users/sridhar/.local/bin/python3.12",
+      "command": "/path/to/python",
       "args": ["-m", "mcp_server"],
       "env": {
-        "SEARXNG_BASE_URL": "http://localhost:8888",
-        "PYTHONPATH": "/Users/sridhar/code/mcp-server/src"
+        "SEARXNG_BASE_URL": "http://localhost:8888"
       }
     }
   }
 }
 ```
 
-Restart Claude Code to pick up the tools.
+## Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SEARXNG_BASE_URL` | http://localhost:8888 | SearXNG instance |
+| `PLAYWRIGHT_HEADLESS` | true | Headless browser |
+| `BROWSER_TIMEOUT` | 15 | Page timeout (seconds) |
+| `GITHUB_TOKEN` | - | GitHub API token |
+| `HF_TOKEN` | - | Hugging Face token |
+| `FIRECRAWL_API_TOKEN` | - | Firecrawl API key |
+| `BROWSERBASE_API_KEY` | - | Browserbase key |
+
+## License
+
+MIT

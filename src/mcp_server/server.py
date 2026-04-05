@@ -1,7 +1,6 @@
 """
-MCP Server — STDIO-based Model Context Protocol server.
-
-Implements the MCP protocol over STDIO using JSON-RPC 2.0.
+MCP Server — Unified STDIO-based Model Context Protocol server.
+35+ tools for local LLM agentic workflows.
 """
 
 from __future__ import annotations
@@ -9,55 +8,139 @@ from __future__ import annotations
 import json
 import sys
 import logging
-from typing import Any
 import asyncio
+from typing import Any
 
-# Support both direct execution (python server.py) and module execution (python -m mcp_server)
-if __package__ is None or __package__ == "":
-    # Running as script — use absolute imports from installed package
-    import mcp_server.schemas.tool_schemas as schemas_module
-    import mcp_server.tools.web_search as ws_tool
-    import mcp_server.tools.fetch_web_content
-    import mcp_server.tools.run_command
-    import mcp_server.tools.playwright_scrape
-    import mcp_server.tools.scrapling_extract
-    import mcp_server.tools.freedium_scrape
-    import mcp_server.tools.code_sandbox
+# Import tool schemas
+from .schemas.tool_schemas import TOOL_DEFINITIONS
 
-    TOOL_DEFINITIONS = schemas_module.TOOL_DEFINITIONS
-    fetch_web_content = mcp_server.tools.fetch_web_content
-    run_command = mcp_server.tools.run_command
-    playwright_scrape = mcp_server.tools.playwright_scrape
-    scrapling_extract = mcp_server.tools.scrapling_extract
-    freedium_scrape = mcp_server.tools.freedium_scrape
-    code_sandbox = mcp_server.tools.code_sandbox
-else:
-    # Running as package — use relative imports
-    from .schemas.tool_schemas import TOOL_DEFINITIONS
-    from .tools import web_search as ws_tool
-    from .tools import fetch_web_content
-    from .tools import run_command
-    from .tools import playwright_scrape
-    from .tools import scrapling_extract
-    from .tools import freedium_scrape
-    from .tools import code_sandbox
+# Import all tools
+from .tools import web_search as ws_tool
+from .tools import fetch_web_content
+from .tools import run_command
+from .tools import playwright_scrape
+from .tools import scrapling_extract
+from .tools import freedium_scrape
+from .tools import code_sandbox
+from .tools import searxng
+from .tools import hackernews
+from .tools import wikipedia
+from .tools import github
+from .tools import file_system
+from .tools import markitdown
+from .tools import matplotlib_tools
+from .tools import pandas_tools
+from .tools import antd_charts
+from .tools import huggingface
+from .tools import sequential_thinking
+from .tools import firecrawl
+from .tools import webclaw
+from .tools import browserbase
+from .tools import gpt_researcher
 
 logging.basicConfig(level=logging.WARNING)
 log = logging.getLogger("mcp_server")
 
 
-# Tool registry: maps tool name -> callable
+# Complete tool registry
 TOOL_CALLABLES: dict[str, Any] = {
-    "web_search": ws_tool.web_search,
+    # === SearXNG Native ===
+    "searxng_search": searxng.search,
+    "search_images": searxng.search_images,
+    "search_news": searxng.search_news,
+    "searxng_health": searxng.health_check,
+
+    # === Web Scraping ===
     "fetch_web_content": fetch_web_content.fetch_web_content,
-    "run_command": run_command.run_command,
     "scrape_dynamic": playwright_scrape.scrape_dynamic_page,
     "extract_structured": scrapling_extract.extract_structured,
     "scrape_freedium": freedium_scrape.scrape_freedium,
     "list_freedium_articles": freedium_scrape.list_freedium_articles,
+    "firecrawl_scrape": firecrawl.scrape_url,
+    "firecrawl_crawl": firecrawl.crawl_url,
+    "webclaw_crawl": webclaw.crawl_with_selectors,
+    "webclaw_extract_article": webclaw.extract_article,
+    "webclaw_extract_product": webclaw.extract_product,
+    "browserbase_browse": browserbase.fallback_browse,
+
+    # === Hacker News ===
+    "hackernews_top": hackernews.get_top_stories,
+    "hackernews_new": hackernews.get_new_stories,
+    "hackernews_best": hackernews.get_best_stories,
+    "hackernews_ask": hackernews.get_ask_hn,
+    "hackernews_show": hackernews.get_show_hn,
+    "hackernews_get_comments": hackernews.get_story_comments,
+    "hackernews_user": hackernews.get_user,
+
+    # === Wikipedia ===
+    "wikipedia_search": wikipedia.search_wikipedia,
+    "wikipedia_get_article": wikipedia.get_article,
+    "wikipedia_related": wikipedia.get_related_articles,
+
+    # === Hugging Face ===
+    "huggingface_search_models": huggingface.search_models,
+    "huggingface_search_datasets": huggingface.search_datasets,
+    "huggingface_model_info": huggingface.get_model_info,
+    "huggingface_trending": huggingface.get_trending_models,
+
+    # === GitHub ===
+    "github_repo": github.get_repo,
+    "github_readme": github.get_readme,
+    "github_issues": github.list_issues,
+    "github_commits": github.list_commits,
+    "github_search_repos": github.search_repositories,
+    "github_file_content": github.get_file_content,
+
+    # === File System ===
+    "file_read": file_system.read_file,
+    "file_write": file_system.write_file,
+    "file_list": file_system.list_directory,
+    "file_info": file_system.file_info,
+    "file_search": file_system.search_files,
+
+    # === Code Execution ===
     "run_code": code_sandbox.run_code,
     "run_python_snippet": code_sandbox.run_python_snippet,
     "test_code_snippet": code_sandbox.test_code_snippet,
+
+    # === Pandas Data ===
+    "pandas_create": pandas_tools.create_dataframe,
+    "pandas_filter": pandas_tools.filter_dataframe,
+    "pandas_aggregate": pandas_tools.aggregate_data,
+    "pandas_correlation": pandas_tools.compute_correlation,
+    "pandas_outliers": pandas_tools.detect_outliers,
+
+    # === Matplotlib Charts ===
+    "plot_line": matplotlib_tools.plot_line,
+    "plot_bar": matplotlib_tools.plot_bar,
+    "plot_pie": matplotlib_tools.plot_pie,
+    "plot_scatter": matplotlib_tools.plot_scatter,
+    "plot_histogram": matplotlib_tools.plot_histogram,
+
+    # === Ant Design Charts ===
+    "generate_chart_spec": antd_charts.generate_line_chart,
+
+    # === Markitdown ===
+    "markitdown_html_to_md": markitdown.html_to_markdown,
+    "markitdown_url_to_md": markitdown.url_to_markdown,
+    "markitdown_file_to_md": markitdown.extract_text_from_file,
+    "markitdown_md_to_html": markitdown.markdown_to_html,
+
+    # === Sequential Thinking ===
+    "thinking_session_create": sequential_thinking.create_session,
+    "thinking_step": sequential_thinking.think,
+    "thinking_revoke": sequential_thinking.revise,
+    "thinking_summary": sequential_thinking.get_session,
+    "analyze_problem": sequential_thinking.analyze_problem,
+
+    # === Research ===
+    "research_start": gpt_researcher.start_research,
+    "research_add_source": gpt_researcher.add_research_source,
+    "research_complete": gpt_researcher.complete_research,
+    "research_report": gpt_researcher.get_research_report,
+
+    # === System ===
+    "run_command": run_command.run_command,
 }
 
 
@@ -82,8 +165,8 @@ def handle_initialize(params: dict) -> dict:
         "protocolVersion": "2024-11-05",
         "capabilities": {"tools": {}},
         "serverInfo": {
-            "name": "mcp-server",
-            "version": "0.1.0",
+            "name": "mcp-server-unified",
+            "version": "2.0.0",
         },
     }
 
@@ -100,54 +183,33 @@ def handle_tools_call(params: dict) -> dict:
 
     if name not in TOOL_CALLABLES:
         return {
-            "content": [
-                {
-                    "type": "text",
-                    "text": json.dumps({"error": f"Unknown tool: {name}"}),
-                }
-            ],
+            "content": [{"type": "text", "text": json.dumps({"error": f"Unknown tool: {name}"})}],
             "isError": True,
         }
 
     try:
         tool_func = TOOL_CALLABLES[name]
 
-        # Handle async functions (playwright)
+        # Handle async functions
         if asyncio.iscoroutinefunction(tool_func):
             result = asyncio.run(tool_func(**arguments))
         else:
             result = tool_func(**arguments)
 
         return {
-            "content": [
-                {
-                    "type": "text",
-                    "text": json.dumps(result, ensure_ascii=False),
-                }
-            ],
+            "content": [{"type": "text", "text": json.dumps(result, ensure_ascii=False)}],
             "isError": False,
         }
 
     except TypeError as e:
-        # Wrong arguments passed to tool
         return {
-            "content": [
-                {
-                    "type": "text",
-                    "text": json.dumps({"error": f"Invalid arguments: {e}"}),
-                }
-            ],
+            "content": [{"type": "text", "text": json.dumps({"error": f"Invalid arguments: {e}"})}],
             "isError": True,
         }
     except Exception as e:
         log.exception("Tool '%s' raised an exception", name)
         return {
-            "content": [
-                {
-                    "type": "text",
-                    "text": json.dumps({"error": str(e)}),
-                }
-            ],
+            "content": [{"type": "text", "text": json.dumps({"error": str(e)})}],
             "isError": True,
         }
 
@@ -161,7 +223,6 @@ def handle_request(method: str, params: dict, msg_id: int | str | None) -> None:
             "id": msg_id,
             "result": result,
         })
-        # MCP: send initialized notification after successful initialize response
         send_notification("notifications/initialized", {})
         return
 
@@ -196,6 +257,8 @@ def handle_request(method: str, params: dict, msg_id: int | str | None) -> None:
 
 def run() -> None:
     """Main server loop — read JSON-RPC requests from stdin."""
+    log.warning(f"MCP Unified Server starting with {len(TOOL_CALLABLES)} tools")
+
     for line in sys.stdin:
         line = line.strip()
         if not line:
@@ -213,7 +276,6 @@ def run() -> None:
                 msg_id=msg.get("id"),
             )
         elif msg.get("method", "").startswith("notifications/"):
-            # Silently ignore notifications
             pass
 
 
