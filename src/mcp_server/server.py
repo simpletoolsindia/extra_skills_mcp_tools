@@ -12,12 +12,13 @@ import logging
 import asyncio
 from typing import Any
 
-# Import tool schemas
-from .schemas.tool_schemas import TOOL_DEFINITIONS
+# Import tool schemas - use trimmed schemas for token optimization
+from .schemas.trimmed_tool_schemas import ALL_TRIMMED_TOOLS
+from .schemas.trimmed_tool_schemas import ALL_TRIMMED_TOOLS as TOOL_DEFINITIONS
 
 # Import all tools
 from .tools import web_search as ws_tool
-from .tools import fetch_web_content
+from .tools import web_fetch_optimized
 from .tools import run_command
 from .tools import playwright_scrape
 from .tools import scrapling_extract
@@ -39,9 +40,40 @@ from .tools import browserbase
 from .tools import youtube_transcript
 from .tools import gpt_researcher
 from .tools import engi_intelligence
+from .tools import context_mode
+from .tools import lazy_tools
+from .tools import semantic_tools
 
 logging.basicConfig(level=logging.WARNING)
 log = logging.getLogger("mcp_server")
+
+
+def _get_token_stats() -> dict:
+    """Return token optimization statistics."""
+    from .schemas.trimmed_tool_schemas import (
+        ORIGINAL_TOOL_COUNT,
+        TRIMMED_TOOL_COUNT,
+        ALL_TRIMMED_TOOLS,
+    )
+
+    def estimate_tool_tokens(tool: dict) -> int:
+        desc = tool.get("description", "")
+        props = tool.get("inputSchema", {}).get("properties", {})
+        props_text = str(props)
+        return (len(desc) + len(props_text)) // 4
+
+    total_tokens = sum(estimate_tool_tokens(t) for t in ALL_TRIMMED_TOOLS)
+    original_estimate = ORIGINAL_TOOL_COUNT * 150
+
+    return {
+        "original_tool_count": ORIGINAL_TOOL_COUNT,
+        "trimmed_tool_count": TRIMMED_TOOL_COUNT,
+        "tool_reduction_percent": round((1 - TRIMMED_TOOL_COUNT / ORIGINAL_TOOL_COUNT) * 100, 1),
+        "estimated_original_tokens": original_estimate,
+        "estimated_trimmed_tokens": total_tokens,
+        "token_savings_percent": round((1 - total_tokens / original_estimate) * 100, 1),
+        "message": f"Tools reduced from {ORIGINAL_TOOL_COUNT} to {TRIMMED_TOOL_COUNT}. Descriptions trimmed, similar tools consolidated.",
+    }
 
 
 # Complete tool registry
@@ -52,8 +84,11 @@ TOOL_CALLABLES: dict[str, Any] = {
     "search_news": searxng.search_news,
     "searxng_health": searxng.health_check,
 
-    # === Web Scraping ===
-    "fetch_web_content": fetch_web_content.fetch_web_content,
+    # === Web Scraping (Optimized) ===
+    "fetch_web_content": web_fetch_optimized.fetch_web_content,
+    "fetch_structured": web_fetch_optimized.fetch_structured,
+    "fetch_with_selectors": web_fetch_optimized.fetch_with_selectors,
+    "quick_fetch": web_fetch_optimized.quick_fetch,
     "scrape_dynamic": playwright_scrape.scrape_dynamic_page,
     "extract_structured": scrapling_extract.extract_structured,
     "scrape_freedium": freedium_scrape.scrape_freedium,
@@ -160,6 +195,26 @@ TOOL_CALLABLES: dict[str, Any] = {
 
     # === System ===
     "run_command": run_command.run_command,
+    "get_token_stats": _get_token_stats,
+
+    # === Context Mode (98% output reduction) ===
+    "ctx_store_output": context_mode.store_output,
+    "ctx_get_output": context_mode.get_stored_output,
+    "ctx_search": context_mode.search_outputs,
+    "ctx_session_overview": context_mode.get_session_overview,
+    "ctx_clear": context_mode.clear_session,
+    "ctx_stats": context_mode.get_context_stats,
+
+    # === Lazy Tool Loading (91% input reduction) ===
+    "tools_minimal": lazy_tools.tools_minimal,
+    "tools_describe": lazy_tools.tools_describe,
+    "tools_search": lazy_tools.tools_search,
+    "tools_categories": lazy_tools.tools_categories,
+
+    # === Semantic Tool Search (3-tool pattern) ===
+    "semantic_search": semantic_tools.semantic_search,
+    "semantic_describe": semantic_tools.semantic_describe,
+    "semantic_execute": semantic_tools.semantic_execute,
 }
 
 
@@ -338,7 +393,9 @@ class MCPServer:
 
     def run_stdio(self) -> None:
         """Run server in STDIO mode (default for Claude Code)."""
-        log.warning(f"MCP Unified Server starting with {len(TOOL_CALLABLES)} tools")
+        from .schemas.trimmed_tool_schemas import TRIMMED_TOOL_COUNT, ORIGINAL_TOOL_COUNT
+        reduction = round((1 - TRIMMED_TOOL_COUNT / ORIGINAL_TOOL_COUNT) * 100)
+        log.warning(f"MCP Unified Server starting with {TRIMMED_TOOL_COUNT} tools (optimized, -{reduction}% from {ORIGINAL_TOOL_COUNT})")
 
         for line in sys.stdin:
             line = line.strip()
