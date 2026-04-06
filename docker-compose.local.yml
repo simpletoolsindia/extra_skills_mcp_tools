@@ -42,7 +42,6 @@ services:
     depends_on:
       - postgres
       - redis
-      - firecrawl
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:
@@ -50,20 +49,96 @@ services:
 
   # ============================================
   # FIRECRAWL - Web Scraping
-  # Port: 7172
-  # Image: mcp/firecrawl
+  # Port: 3002 (external: 7172)
+  # Image: trieve/firecrawl (self-hosted)
   # ============================================
-  firecrawl:
-    image: mcp/firecrawl:latest
+  playwright-service:
+    image: trieve/puppeteer-service-ts:v0.0.13
+    container_name: firecrawl-playwright
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - HOST=0.0.0.0
+      - MAX_CONCURRENCY=5
+    volumes:
+      - playwright-data:/tmp/.cache
+    shm_size: "2gb"
+    networks:
+      - local-network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  firecrawl-api:
+    image: trieve/firecrawl:v0.0.55
     container_name: firecrawl
     restart: unless-stopped
     ports:
       - "7172:3002"
-    volumes:
-      - ./firecrawl-data:/app/data
+    environment:
+      # Required
+      - PORT=3002
+      - HOST=0.0.0.0
+      - USE_DB_AUTHENTICATION=false
+      # Redis
+      - REDIS_URL=redis://redis:6379
+      - REDIS_RATE_LIMIT_URL=redis://redis:6379
+      # Playwright service
+      - PLAYWRIGHT_MICROSERVICE_URL=http://playwright-service:3000
+      # Worker settings
+      - NUM_WORKERS_PER_QUEUE=4
+      - CRAWL_CONCURRENT_REQUESTS=5
+      - MAX_CONCURRENT_JOBS=3
+      # Ollama for local LLM
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      # API keys
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - TEST_API_KEY=local-dev-key
+      # Admin UI
+      - BULL_AUTH_KEY=local-dev-key
+      # Logging
+      - LOGGING_LEVEL=INFO
+    depends_on:
+      redis:
+        condition: service_healthy
+      playwright-service:
+        condition: service_healthy
+    networks:
+      - local-network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  firecrawl-worker:
+    image: trieve/firecrawl:v0.0.55
+    container_name: firecrawl-worker
+    restart: unless-stopped
     environment:
       - PORT=3002
       - HOST=0.0.0.0
+      - USE_DB_AUTHENTICATION=false
+      - IS_WORKER=true
+      - REDIS_URL=redis://redis:6379
+      - REDIS_RATE_LIMIT_URL=redis://redis:6379
+      - PLAYWRIGHT_MICROSERVICE_URL=http://playwright-service:3000
+      - NUM_WORKERS_PER_QUEUE=4
+      - CRAWL_CONCURRENT_REQUESTS=5
+      - MAX_CONCURRENT_JOBS=3
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - BULL_AUTH_KEY=local-dev-key
+      - LOGGING_LEVEL=INFO
+    depends_on:
+      redis:
+        condition: service_healthy
+      playwright-service:
+        condition: service_healthy
     networks:
       - local-network
 
@@ -124,5 +199,5 @@ networks:
 volumes:
   postgres-data:
   redis-data:
-  firecrawl-data:
+  playwright-data:
   chromadb-data:

@@ -50,6 +50,48 @@ See [`TOKEN_OPTIMIZATION.md`](TOKEN_OPTIMIZATION.md) for full documentation.
 
 ---
 
+## Claude Code Optimization (70%+ Cost Reduction)
+
+### Model Selection Strategy
+
+| Model | Use Case | Cost |
+|-------|----------|------|
+| **Sonnet** | Most coding tasks | $3/million |
+| **Opus** | Complex architecture, deep debugging | $15/million |
+| **Haiku** | Code review, simple fixes | $0.25/million |
+
+### Recommended Settings
+
+```bash
+# Add to ~/.zshrc or ~/.bashrc
+
+# Use Sonnet as default (~60% cheaper)
+claude config set --claude-code-subagent-model sonnet
+
+# Limit thinking tokens (~70% savings)
+export MAX_THINKING_TOKENS=10000
+
+# Compact earlier (better performance)
+export CLAUDE_AUTOCOMPACT_PCT_OVERRIDE=50
+```
+
+### Quick Commands
+
+```bash
+/cost      # Monitor token usage
+/clear     # Free context reset between tasks
+/compact   # Manual compaction at breakpoints
+/context   # Check context usage
+```
+
+### MCP Server Best Practices
+
+> **Warning:** Keep MCP servers under 10, total tools under 80. Excessive MCPs reduce effective context from 200k to ~70k.
+
+See [`OPTIMIZATION_GUIDE.md`](OPTIMIZATION_GUIDE.md) for full optimization guide.
+
+---
+
 ## Quick Start
 
 ```bash
@@ -482,6 +524,55 @@ print(_get_token_stats())
      │  └────────────┘  └────────────┘  └────────────┘       │
      └─────────────────────────────────────────────────────────┘
 ```
+
+---
+
+## Essential MCP Servers for Developers
+
+We recommend these additional MCP servers to complement our 83 tools:
+
+### Must-Have (⭐)
+
+| Server | Description | Setup |
+|--------|-------------|-------|
+| **GitHub** | Repository management, issues, PRs | `npx -y @modelcontextprotocol/server-github` |
+| **Memory** | Persistent knowledge across sessions | `npx -y @modelcontextprotocol/server-memory` |
+| **Sentry** | Error tracking and debugging | `npx -y @modelcontextprotocol/server-sentry` |
+
+### Recommended
+
+| Server | Description | Setup |
+|--------|-------------|-------|
+| **Cloudflare** | Workers, KV, R2, D1 | `npx -y @modelcontextprotocol/server-cloudflare` |
+| **Slack** | Channel messaging | `npx -y @modelcontextprotocol/server-slack` |
+| **PostgreSQL** | Database queries | `npx -y @modelcontextprotocol/server-postgres` |
+
+### Example Configuration
+
+```json
+{
+  "mcpServers": {
+    "mcp-server": {
+      "command": "docker",
+      "args": ["exec", "-i", "mcp-server", "python", "-c", "from mcp_server.server import run; run()"]
+    },
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"]
+    },
+    "memory": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-memory"]
+    },
+    "sentry": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sentry"]
+    }
+  }
+}
+```
+
+See [`ESSENTIAL_MCP_SERVERS.md`](ESSENTIAL_MCP_SERVERS.md) for complete list (30+ servers).
 
 ---
 
