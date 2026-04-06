@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PawPal - Premium Pet Shop</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Fredoka:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #FF6B6B;
+            --secondary: #4ECDC4;
+            --accent: #FFE66D;
+            --dark: #2C3E50;
+            --light: #F7F9FC;
+            --white: #FFFFFF;
+            --shadow: 0 10px 40px rgba(0,0,0,0.1);
+            --radius: 20px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: var(--light);
+            color: var(--dark);
+            overflow-x: hidden;
+        }
+
+        /* Navbar */
+        .navbar {
+            background: var(--white);
+            padding: 1rem 5%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 20px rgba(0,0,0,0.08);
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .logo {
+            font-family: 'Fredoka', sans-serif;
+            font-size: 1.8rem;
+            font-weight: 600;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .logo span {
+            font-size: 2rem;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+        }
+
+        .nav-links a {
+            text-decoration: none;
+            color: var(--dark);
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+
+        .nav-links a:hover {
+            color: var(--primary);
+        }
+
+        .cart-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.8rem 1.5rem;
+            border-radius: 50px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .cart-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(255,107,107,0.4);
+        }
+
+        /* Hero Section */
+        .hero {
+            margin-top: 80px;
+            background: linear-gradient(135deg, #FF6B6B 0%, #FF8E8E 50%, #FFE66D 100%);
+            padding: 6rem 5%;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+            opacity: 0.5;
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .hero h1 {
+            font-family: 'Fredoka', sans-serif;
+            font-size: 3.5rem;
+            color: white;
+            margin-bottom: 1rem;
+            text-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        }
+
+        .hero p {
+            font-size: 1.3rem;
+            color: white;
+            margin-bottom: 2rem;
+            opacity: 0.95;
+        }
+
+        .hero-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+        }
+
+        .btn-primary {
+            background: var(--dark);
+            color: white;
+            border: none;
+            padding: 1rem 2.5rem;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: white;
+            border: 2px solid white;
+            padding: 1rem 2.5rem;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        /* Categories */
+        .categories {
+            padding: 4rem 5%;
+        }
+
+        .section-title {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .section-title h2 {
+            font-family: 'Fredoka', sans-serif;
+            font-size: 2.5rem;
+            color: var(--dark);
+            margin-bottom: 0.5rem;
+        }
+
+        .section-title p {
+            color: #666;
+            font-size: 1.1rem;
+        }
+
+        .category-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .category-card {
+            background: white;
+            padding: 2rem;
+            border-radius: var(--radius);
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: var(--shadow);
+        }
+
+        .category-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.15);
+        }
+
+        .category-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+
+        .category-card h3 {
+            font-size: 1.2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .category-card p {
+            color: #888;
+            font-size: 0.9rem;
+        }
+
+        /* Products */
+        .products {
+            padding: 4rem 5%;
+            background: white;
+        }
+
+        .product-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+        }
+
+        .product-card {
+            background: var(--light);
+            border-radius: var(--radius);
+            overflow: hidden;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .product-card:hover {
+            transform: translateY(-5px);
+            box-shadow: var(--shadow);
+        }
+
+        .product-image {
+            height: 200px;
+            background: linear-gradient(135deg, var(--secondary), var(--primary));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 5rem;
+        }
+
+        .product-info {
+            padding: 1.5rem;
+        }
+
+        .product-category {
+            color: var(--secondary);
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .product-name {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin: 0.5rem 0;
+        }
+
+        .product-desc {
+            color: #666;
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+            line-height: 1.5;
+        }
+
+        .product-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .product-price {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .add-to-cart {
+            background: var(--primary);
+            color: white;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .add-to-cart:hover {
+            transform: scale(1.1);
+            background: var(--secondary);
+        }
+
+        /* AI Chatbot */
+        .chatbot-section {
+            padding: 4rem 5%;
+            background: linear-gradient(135deg, var(--dark) 0%, #34495E 100%);
+            color: white;
+        }
+
+        .chatbot-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .chatbox {
+            background: rgba(255,255,255,0.1);
+            border-radius: var(--radius);
+            padding: 1.5rem;
+            min-height: 300px;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-bottom: 1rem;
+        }
+
+        .chat-message {
+            padding: 1rem;
+            border-radius: 15px;
+            margin-bottom: 1rem;
+            max-width: 80%;
+        }
+
+        .chat-message.bot {
+            background: rgba(255,255,255,0.2);
+            margin-right: auto;
+        }
+
+        .chat-message.user {
+            background: var(--primary);
+            margin-left: auto;
+        }
+
+        .chat-input-container {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .chat-input {
+            flex: 1;
+            padding: 1rem 1.5rem;
+            border-radius: 50px;
+            border: none;
+            font-size: 1rem;
+            outline: none;
+        }
+
+        .chat-send {
+            background: var(--secondary);
+            color: white;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .chat-send:hover {
+            background: var(--accent);
+            color: var(--dark);
+        }
+
+        /* Footer */
+        .footer {
+            background: var(--dark);
+            color: white;
+            padding: 4rem 5% 2rem;
+        }
+
+        .footer-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 3rem;
+            margin-bottom: 3rem;
+        }
+
+        .footer-col h3 {
+            font-family: 'Fredoka', sans-serif;
+            font-size: 1.3rem;
+            margin-bottom: 1.5rem;
+            color: var(--accent);
+        }
+
+        .footer-col ul {
+            list-style: none;
+        }
+
+        .footer-col li {
+            margin-bottom: 0.8rem;
+        }
+
+        .footer-col a {
+            color: rgba(255,255,255,0.7);
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+
+        .footer-col a:hover {
+            color: var(--accent);
+        }
+
+        .footer-bottom {
+            text-align: center;
+            padding-top: 2rem;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            color: rgba(255,255,255,0.5);
+        }
+
+        /* Loading Animation */
+        .typing-indicator {
+            display: flex;
+            gap: 5px;
+            padding: 1rem;
+        }
+
+        .typing-indicator span {
+            width: 8px;
+            height: 8px;
+            background: rgba(255,255,255,0.5);
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out;
+        }
+
+        .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
+        .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .nav-links { display: none; }
+            .hero h1 { font-size: 2.5rem; }
+            .hero-buttons { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="logo">
+            <span>🐾</span> PawPal
+        </div>
+        <ul class="nav-links">
+            <li><a href="#home">Home</a></li>
+            <li><a href="#categories">Categories</a></li>
+            <li><a href="#products">Products</a></li>
+            <li><a href="#chatbot">AI Assistant</a></li>
+        </ul>
+        <button class="cart-btn">
+            🛒 Cart <span id="cart-count">0</span>
+        </button>
+    </nav>
+
+    <!-- Hero -->
+    <section class="hero" id="home">
+        <div class="hero-content">
+            <h1>🐕 Happy Pets, Happy Life 🐈</h1>
+            <p>Premium products for your furry friends. AI-powered recommendations!</p>
+            <div class="hero-buttons">
+                <button class="btn-primary" onclick="scrollToSection('products')">Shop Now</button>
+                <button class="btn-secondary" onclick="scrollToSection('chatbot')">Chat with AI</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Categories -->
+    <section class="categories" id="categories">
+        <div class="section-title">
+            <h2>Shop by Category</h2>
+            <p>Find everything your pet needs</p>
+        </div>
+        <div class="category-grid">
+            <div class="category-card" onclick="filterProducts('dog')">
+                <div class="category-icon">🐕</div>
+                <h3>Dogs</h3>
+                <p>2,500+ Products</p>
+            </div>
+            <div class="category-card" onclick="filterProducts('cat')">
+                <div class="category-icon">🐈</div>
+                <h3>Cats</h3>
+                <p>1,800+ Products</p>
+            </div>
+            <div class="category-card" onclick="filterProducts('bird')">
+                <div class="category-icon">🦜</div>
+                <h3>Birds</h3>
+                <p>500+ Products</p>
+            </div>
+            <div class="category-card" onclick="filterProducts('fish')">
+                <div class="category-icon">🐠</div>
+                <h3>Fish</h3>
+                <p>1,200+ Products</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Products -->
+    <section class="products" id="products">
+        <div class="section-title">
+            <h2>Featured Products</h2>
+            <p>Handpicked favorites for your pets</p>
+        </div>
+        <div class="product-grid" id="product-grid">
+            <!-- Products loaded via JS -->
+        </div>
+    </section>
+
+    <!-- AI Chatbot -->
+    <section class="chatbot-section" id="chatbot">
+        <div class="chatbot-container">
+            <div class="section-title" style="color: white;">
+                <h2 style="color: white;">🐾 PawPal AI Assistant</h2>
+                <p style="color: rgba(255,255,255,0.8);">Ask me anything about pet care, products, or recommendations!</p>
+            </div>
+            <div class="chatbox" id="chatbox">
+                <div class="chat-message bot">
+                    Hi! I'm PawPal AI 👋. Ask me anything about pet care, product recommendations, or anything else!
+                </div>
+            </div>
+            <div class="chat-input-container">
+                <input type="text" class="chat-input" id="chat-input" placeholder="Ask me about pet care..." onkeypress="handleChatKeypress(event)">
+                <button class="chat-send" onclick="sendChat()">➤</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-grid">
+            <div class="footer-col">
+                <h3>🐾 PawPal</h3>
+                <p style="color: rgba(255,255,255,0.7); line-height: 1.6;">
+                    Your trusted partner in pet care. Premium products, AI-powered recommendations.
+                </p>
+            </div>
+            <div class="footer-col">
+                <h3>Quick Links</h3>
+                <ul>
+                    <li><a href="#">About Us</a></li>
+                    <li><a href="#">Contact</a></li>
+                    <li><a href="#">Shipping</a></li>
+                    <li><a href="#">Returns</a></li>
+                </ul>
+            </div>
+            <div class="footer-col">
+                <h3>Categories</h3>
+                <ul>
+                    <li><a href="#">Dogs</a></li>
+                    <li><a href="#">Cats</a></li>
+                    <li><a href="#">Birds</a></li>
+                    <li><a href="#">Fish</a></li>
+                </ul>
+            </div>
+            <div class="footer-col">
+                <h3>Contact</h3>
+                <ul>
+                    <li>📧 support@pawpal.com</li>
+                    <li>📞 1-800-PAW-PAL</li>
+                    <li>📍 San Francisco, CA</li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>© 2026 PawPal. Powered by Ollama AI & MCP Server</p>
+        </div>
+    </footer>
+
+    <script>
+        // Product Data
+        const products = [
+            { id: 1, name: 'Premium Dog Food', category: 'dog', price: 49.99, icon: '🍖', desc: 'Nutritious formula for adult dogs' },
+            { id: 2, name: 'Cozy Pet Bed', category: 'dog', price: 79.99, icon: '🛏️', desc: 'Ultra-soft memory foam bed' },
+            { id: 3, name: 'Interactive Cat Toy', category: 'cat', price: 24.99, icon: '🎾', desc: 'Keeps cats entertained for hours' },
+            { id: 4, name: 'Automatic Feeder', category: 'cat', price: 89.99, icon: '🤖', desc: 'WiFi-enabled smart feeder' },
+            { id: 5, name: 'Bird Cage Deluxe', category: 'bird', price: 149.99, icon: '🏠', desc: 'Spacious cage for parakeets' },
+            { id: 6, name: 'Aquarium Starter Kit', category: 'fish', price: 129.99, icon: '🐟', desc: '20-gallon tank with filter' },
+            { id: 7, name: 'Dog Training Treats', category: 'dog', price: 19.99, icon: '🦴', desc: 'Healthy training rewards' },
+            { id: 8, name: 'Cat Scratching Post', category: 'cat', price: 39.99, icon: '🪵', desc: 'Sisal rope scratching post' },
+        ];
+
+        // Load Products
+        function loadProducts(filter = null) {
+            const grid = document.getElementById('product-grid');
+            const filtered = filter ? products.filter(p => p.category === filter) : products;
+
+            grid.innerHTML = filtered.map(p => `
+                <div class="product-card">
+                    <div class="product-image">${p.icon}</div>
+                    <div class="product-info">
+                        <span class="product-category">${p.category}</span>
+                        <h3 class="product-name">${p.name}</h3>
+                        <p class="product-desc">${p.desc}</p>
+                        <div class="product-footer">
+                            <span class="product-price">$${p.price}</span>
+                            <button class="add-to-cart" onclick="addToCart(${p.id})">+</button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Filter Products
+        function filterProducts(category) {
+            loadProducts(category);
+            scrollToSection('products');
+        }
+
+        // Cart
+        let cartCount = 0;
+        function addToCart(id) {
+            cartCount++;
+            document.getElementById('cart-count').textContent = cartCount;
+        }
+
+        // Scroll
+        function scrollToSection(id) {
+            document.getElementById(id).scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Chat with Ollama
+        async function sendChat() {
+            const input = document.getElementById('chat-input');
+            const chatbox = document.getElementById('chatbox');
+            const message = input.value.trim();
+
+            if (!message) return;
+
+            // Add user message
+            chatbox.innerHTML += `<div class="chat-message user">${message}</div>`;
+            input.value = '';
+
+            // Add typing indicator
+            chatbox.innerHTML += `<div class="chat-message bot"><div class="typing-indicator"><span></span><span></span><span></span></div></div>`;
+            chatbox.scrollTop = chatbox.scrollHeight;
+
+            try {
+                const response = await fetch('http://localhost:11434/api/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model: 'huihui_ai/jan-nano-abliterated:latest',
+                        prompt: `You are PawPal, a friendly pet care assistant. Answer this question about pets: ${message}. Keep it short and helpful (2-3 sentences max).`,
+                        stream: false
+                    })
+                });
+
+                const data = await response.json();
+
+                // Remove typing indicator and add response
+                chatbox.innerHTML = chatbox.innerHTML.replace(
+                    /<div class="chat-message bot"><div class="typing-indicator"><span><\/span><span><\/span><span><\/span><\/div><\/div>/,
+                    `<div class="chat-message bot">${data.response}</div>`
+                );
+            } catch (error) {
+                chatbox.innerHTML = chatbox.innerHTML.replace(
+                    /<div class="chat-message bot"><div class="typing-indicator"><span><\/span><span><\/span><span><\/span><\/div><\/div>/,
+                    `<div class="chat-message bot">Oops! I'm having trouble connecting. Try again!</div>`
+                );
+            }
+
+            chatbox.scrollTop = chatbox.scrollHeight;
+        }
+
+        function handleChatKeypress(e) {
+            if (e.key === 'Enter') sendChat();
+        }
+
+        // Initialize
+        loadProducts();
+    </script>
+</body>
+</html>
