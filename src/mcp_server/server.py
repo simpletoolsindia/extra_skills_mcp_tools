@@ -292,6 +292,7 @@ class MCPServer:
                 "isError": True,
             }
         except Exception as e:
+            log.exception("Tool '%s' exception", name)
             log.exception("Tool '%s' raised an exception", name)
             return {
                 "content": [{"type": "text", "text": json.dumps({"error": str(e)})}],

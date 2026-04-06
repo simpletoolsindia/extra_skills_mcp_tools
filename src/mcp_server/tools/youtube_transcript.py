@@ -349,10 +349,10 @@ def search_youtube(query: str, limit: int = 10) -> dict:
     """
     Search YouTube videos (bypasses API rate limits).
 
-    Tries multiple methods in order:
-    1. RSS feed (fastest, no rate limits)
-    2. Playwright (most accurate, slower)
-    3. Invidious instances (fallback)
+    Tries methods in order:
+    1. RSS feed (fast, may be blocked)
+    2. Playwright (reliable, uses thread pool)
+    3. Invidious (fallback)
 
     Args:
         query: Search query
@@ -361,19 +361,19 @@ def search_youtube(query: str, limit: int = 10) -> dict:
     Returns:
         dict with keys: videos (list), error
     """
-    # Method 1: Try RSS feed (fast, no rate limits)
+    # Method 1: Try RSS feed
     rss_result = search_youtube_rss(query, limit)
     if rss_result.get("videos"):
         return rss_result
 
-    # Method 2: Try Playwright-based search (bypasses rate limits)
+    # Method 2: Try Playwright (thread pool to avoid asyncio conflicts)
     playwright_result = search_youtube_playwright(query, limit)
     if playwright_result.get("videos"):
         return playwright_result
 
     # Method 3: Fallback to Invidious
     if not HTTpx_AVAILABLE:
-        return {"videos": [], "error": "All search methods failed (httpx not installed, Playwright failed)"}
+        return {"videos": [], "error": "All search methods failed"}
 
     try:
         with httpx.Client(timeout=30.0, follow_redirects=True) as client:
@@ -428,6 +428,7 @@ def search_youtube(query: str, limit: int = 10) -> dict:
 def search_youtube_playwright(query: str, limit: int = 10) -> dict:
     """
     Search YouTube videos using local Playwright (bypasses API rate limits).
+    Uses thread pool to avoid asyncio conflicts.
 
     Args:
         query: Search query
@@ -436,78 +437,85 @@ def search_youtube_playwright(query: str, limit: int = 10) -> dict:
     Returns:
         dict with keys: videos (list), error
     """
+    import asyncio
+    import concurrent.futures
+
     try:
         from playwright.sync_api import sync_playwright
     except ImportError:
         return {"videos": [], "error": "Playwright not installed"}
 
-    try:
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
-            page = browser.new_page()
+    def _search_sync(q: str, lim: int) -> dict:
+        """Sync search inside thread."""
+        try:
+            with sync_playwright() as p:
+                browser = p.chromium.launch(headless=True)
+                page = browser.new_page()
 
-            # Navigate to YouTube search
-            search_url = f"https://www.youtube.com/results?search_query={query.replace(' ', '+')}"
-            page.goto(search_url, wait_until="networkidle", timeout=45000)
+                search_url = f"https://www.youtube.com/results?search_query={q.replace(' ', '+')}"
+                page.goto(search_url, wait_until="networkidle", timeout=45000)
 
-            # Wait for video results to load
-            try:
-                page.wait_for_selector("ytd-video-renderer", timeout=15000)
-            except Exception:
-                browser.close()
-                return {"videos": [], "error": "No search results found"}
-
-            videos = []
-            items = page.query_selector_all("ytd-video-renderer")
-
-            for item in items[:limit]:
                 try:
-                    # Get title
-                    title_el = item.query_selector("yt-formatted-string")
-                    title = title_el.inner_text().strip() if title_el else ""
-
-                    # Get video ID and URL
-                    link_el = item.query_selector("a#video-title")
-                    href = link_el.get_attribute("href") if link_el else ""
-                    video_id = ""
-                    if href:
-                        import re
-                        match = re.search(r"[?&]v=([^&]+)", href)
-                        if match:
-                            video_id = match.group(1)
-
-                    # Get channel name
-                    channel_el = item.query_selector("#channel-name a")
-                    channel = channel_el.inner_text().strip() if channel_el else ""
-
-                    # Get metadata (views, time ago)
-                    metadata_els = item.query_selector_all("#metadata-line span")
-                    metadata = [el.inner_text() for el in metadata_els] if metadata_els else []
-
-                    # Get duration (if visible)
-                    duration_el = item.query_selector("#time")
-                    duration = duration_el.inner_text().strip() if duration_el else ""
-
-                    if video_id and title:
-                        videos.append({
-                            "videoId": video_id,
-                            "title": title,
-                            "author": channel,
-                            "url": f"https://youtube.com/watch?v={video_id}",
-                            "description": "",
-                            "duration": duration,
-                            "viewCount": metadata[0] if metadata else "",
-                            "publishedText": metadata[1] if len(metadata) > 1 else "",
-                        })
-
+                    page.wait_for_selector("ytd-video-renderer", timeout=15000)
                 except Exception:
-                    continue
+                    browser.close()
+                    return {"videos": [], "error": "No search results found"}
 
-            browser.close()
-            return {"videos": videos, "error": None if videos else "No videos extracted"}
+                videos = []
+                items = page.query_selector_all("ytd-video-renderer")
 
+                for item in items[:lim]:
+                    try:
+                        title_el = item.query_selector("yt-formatted-string")
+                        title = title_el.inner_text().strip() if title_el else ""
+
+                        link_el = item.query_selector("a#video-title")
+                        href = link_el.get_attribute("href") if link_el else ""
+                        video_id = ""
+                        if href:
+                            import re
+                            match = re.search(r"[?&]v=([^&]+)", href)
+                            if match:
+                                video_id = match.group(1)
+
+                        channel_el = item.query_selector("#channel-name a")
+                        channel = channel_el.inner_text().strip() if channel_el else ""
+
+                        metadata_els = item.query_selector_all("#metadata-line span")
+                        metadata = [el.inner_text() for el in metadata_els] if metadata_els else []
+
+                        duration_el = item.query_selector("#time")
+                        duration = duration_el.inner_text().strip() if duration_el else ""
+
+                        if video_id and title:
+                            videos.append({
+                                "videoId": video_id,
+                                "title": title,
+                                "author": channel,
+                                "url": f"https://youtube.com/watch?v={video_id}",
+                                "description": "",
+                                "duration": duration,
+                                "viewCount": metadata[0] if metadata else "",
+                                "publishedText": metadata[1] if len(metadata) > 1 else "",
+                            })
+                    except Exception:
+                        continue
+
+                browser.close()
+                return {"videos": videos, "error": None if videos else "No videos extracted"}
+        except Exception as e:
+            return {"videos": [], "error": f"Playwright error: {str(e)}"}
+
+    try:
+        # Run in thread pool to avoid asyncio conflicts
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(_search_sync, query, limit)
+            result = future.result(timeout=60)
+        return result
+    except concurrent.futures.TimeoutError:
+        return {"videos": [], "error": "Playwright search timeout"}
     except Exception as e:
-        return {"videos": [], "error": f"Playwright error: {str(e)}"}
+        return {"videos": [], "error": f"Thread pool error: {str(e)}"}
 
 
 def search_youtube_rss(query: str, limit: int = 10) -> dict:
