@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import json
 import os
 import re
+import subprocess
+import tempfile
 from typing import Optional, List, Dict, Any
 
 try:
@@ -11,6 +14,15 @@ try:
     HTTpx_AVAILABLE = True
 except ImportError:
     HTTpx_AVAILABLE = False
+
+# Check if yt-dlp is available
+YTDLP_AVAILABLE = False
+try:
+    result = subprocess.run(["yt-dlp", "--version"], capture_output=True, text=True)
+    if result.returncode == 0:
+        YTDLP_AVAILABLE = True
+except Exception:
+    pass
 
 
 YOUTUBE_TRANSCRIPT_API = "https://youtubetranscript.com"
@@ -34,7 +46,7 @@ def extract_video_id(url: str) -> Optional[str]:
 
 def get_transcript_captions(video_id: str, lang: str = "en") -> dict:
     """
-    Get transcript from YouTube using caption extraction.
+    Get transcript from YouTube using multiple methods.
 
     Args:
         video_id: YouTube video ID
@@ -46,23 +58,227 @@ def get_transcript_captions(video_id: str, lang: str = "en") -> dict:
     if not HTTpx_AVAILABLE:
         return {"transcript": "", "subtitles": [], "error": "httpx not installed"}
 
+    # Method 1: Try YouTube's transcript API via invidious
     try:
-        # Method 1: Use YouTube's caption API
-        caption_url = f"https://youtubetranscript.com/?v={video_id}"
-
         with httpx.Client(timeout=30.0, follow_redirects=True) as client:
-            response = client.get(caption_url)
-
-            if response.status_code == 200:
-                # Parse transcript from response
-                transcript = parse_transcript_response(response.text)
-                if transcript:
-                    return {"transcript": transcript, "subtitles": [], "error": None}
-
-        return {"transcript": "", "subtitles": [], "error": "No transcript available"}
-
+            # Use Invidious to get captions
+            for instance in ["https://yewtu.be", "https://invidious.privacyredirect.com"]:
+                try:
+                    response = client.get(
+                        f"{instance}/api/v1/captions/{video_id}",
+                        headers={"User-Agent": "Mozilla/5.0"},
+                    )
+                    if response.status_code == 200:
+                        data = response.json()
+                        if data.get("captions"):
+                            transcript_parts = []
+                            for cap in data["captions"]:
+                                transcript_parts.append(cap.get("text", ""))
+                            if transcript_parts:
+                                return {"transcript": " ".join(transcript_parts), "subtitles": [], "error": None}
+                except Exception:
+                    continue
     except Exception as e:
-        return {"transcript": "", "subtitles": [], "error": str(e)}
+        pass
+
+    # Method 2: Try Google translate captions API
+    try:
+        with httpx.Client(timeout=30.0) as client:
+            # Try YouTube's caption endpoint
+            caption_url = f"https://youtubetranscript.com/?v={video_id}"
+            response = client.get(caption_url)
+            if response.status_code == 200:
+                transcript = parse_transcript_response(response.text)
+                if transcript and len(transcript) > 50:
+                    return {"transcript": transcript, "subtitles": [], "error": None}
+    except Exception:
+        pass
+
+    # Method 3: Try fetching auto-generated captions directly
+    try:
+        with httpx.Client(timeout=30.0) as client:
+            # YouTube auto-generated captions
+            response = client.get(
+                f"https://subtitle.tools/?url=https://www.youtube.com/watch?v={video_id}&format=json",
+                headers={"User-Agent": "Mozilla/5.0"},
+            )
+            if response.status_code == 200:
+                try:
+                    data = response.json()
+                    if data.get("subtitles"):
+                        parts = [s.get("text", "") for s in data["subtitles"]]
+                        return {"transcript": " ".join(parts), "subtitles": [], "error": None}
+                except Exception:
+                    pass
+    except Exception:
+        pass
+
+    return {"transcript": "", "subtitles": [], "error": "No transcript available - video may not have captions"}
+
+
+def get_transcript_ytdlp(video_id: str, lang: str = "en") -> dict:
+    """
+    Get transcript using yt-dlp (most reliable method).
+
+    Args:
+        video_id: YouTube video ID
+        lang: Language code (default: en)
+
+    Returns:
+        dict with keys: transcript, segments, error
+    """
+    if not YTDLP_AVAILABLE:
+        return {"transcript": "", "segments": [], "error": "yt-dlp not installed"}
+
+    try:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Extract transcript using yt-dlp with VTT format
+            output_template = os.path.join(tmpdir, "caption")
+            cmd = [
+                "yt-dlp",
+                "--write-auto-subs",
+                "--write-subs",
+                "--sub-lang", f"{lang},{lang}-US,{lang}-GB,en",
+                "--skip-download",
+                "--output", output_template,
+                f"https://www.youtube.com/watch?v={video_id}",
+            ]
+
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+
+            # Find the subtitle file (vtt or srt)
+            vtt_files = [f for f in os.listdir(tmpdir) if f.endswith(".vtt")]
+            srt_files = [f for f in os.listdir(tmpdir) if f.endswith(".srt")]
+
+            subtitle_file = None
+            if vtt_files:
+                subtitle_file = os.path.join(tmpdir, vtt_files[0])
+            elif srt_files:
+                subtitle_file = os.path.join(tmpdir, srt_files[0])
+
+            if subtitle_file:
+                with open(subtitle_file, "r", encoding="utf-8") as f:
+                    content = f.read()
+
+                # Parse VTT format
+                if subtitle_file.endswith(".vtt"):
+                    segments, transcript = parse_vtt(content)
+                else:
+                    # Parse SRT format
+                    segments, transcript = parse_srt(content)
+
+                if segments or transcript:
+                    return {
+                        "transcript": transcript,
+                        "segments": segments,
+                        "error": None,
+                    }
+
+            return {"transcript": "", "segments": [], "error": "No captions found"}
+
+    except subprocess.TimeoutExpired:
+        return {"transcript": "", "segments": [], "error": "Timeout extracting transcript"}
+    except Exception as e:
+        return {"transcript": "", "segments": [], "error": str(e)}
+
+
+def parse_vtt(content: str) -> tuple:
+    """Parse VTT subtitle content."""
+    segments = []
+    transcript_parts = []
+
+    lines = content.strip().split("\n")
+    i = 0
+    # Skip header
+    while i < len(lines) and "WEBVTT" not in lines[i]:
+        i += 1
+    i += 1
+
+    while i < len(lines):
+        line = lines[i].strip()
+
+        # Check for timestamp line
+        if "-->" in line:
+            try:
+                start, end = line.split("-->")
+                start = start.strip().replace(",", ".")
+                end = end.strip().replace(",", ".")
+
+                # Parse start time
+                parts = start.split(":")
+                if len(parts) == 3:
+                    start_sec = (
+                        int(parts[0]) * 3600 +
+                        int(parts[1]) * 60 +
+                        float(parts[2])
+                    )
+                elif len(parts) == 2:
+                    start_sec = int(parts[0]) * 60 + float(parts[1])
+                else:
+                    start_sec = 0
+
+                # Collect text lines until empty line
+                text_lines = []
+                i += 1
+                while i < len(lines) and lines[i].strip():
+                    text_lines.append(lines[i].strip())
+                    i += 1
+
+                text = " ".join(text_lines)
+                if text:
+                    segments.append({
+                        "start": start_sec,
+                        "text": text,
+                        "timestamp": format_timestamp(start_sec),
+                    })
+                    transcript_parts.append(text)
+            except Exception:
+                pass
+        i += 1
+
+    return segments, " ".join(transcript_parts)
+
+
+def parse_srt(content: str) -> tuple:
+    """Parse SRT subtitle content."""
+    segments = []
+    transcript_parts = []
+
+    blocks = content.strip().split("\n\n")
+    for block in blocks:
+        lines = block.strip().split("\n")
+        if len(lines) >= 2:
+            try:
+                # Second line is timestamp
+                if "-->" in lines[1]:
+                    start, end = lines[1].split("-->")
+                    parts = start.strip().replace(",", ".").split(":")
+                    if len(parts) == 3:
+                        start_sec = (
+                            int(parts[0]) * 3600 +
+                            int(parts[1]) * 60 +
+                            float(parts[2])
+                        )
+                    else:
+                        start_sec = 0
+
+                    text = " ".join(lines[2:])
+                    if text:
+                        segments.append({
+                            "start": start_sec,
+                            "text": text,
+                            "timestamp": format_timestamp(start_sec),
+                        })
+                        transcript_parts.append(text)
+            except Exception:
+                pass
+
+    return segments, " ".join(transcript_parts)
 
 
 def parse_transcript_response(html: str) -> str:
@@ -87,18 +303,26 @@ def parse_transcript_response(html: str) -> str:
     return ' '.join(m.strip() for m in matches if len(m.strip()) > 10)
 
 
-def get_video_info(video_id: str) -> dict:
+def get_video_info(video_id: str = None, url: str = None) -> dict:
     """
     Get basic video information.
 
     Args:
-        video_id: YouTube video ID
+        video_id: YouTube video ID (11 chars)
+        url: Video URL (alternative to video_id)
 
     Returns:
-        dict with keys: title, channel, description, error
+        dict with keys: title, channel, thumbnail, video_id, error
     """
+    # Extract video_id from url if provided
+    if not video_id and url:
+        video_id = extract_video_id(url)
+
+    if not video_id:
+        return {"title": "", "channel": "", "thumbnail": "", "video_id": "", "error": "No video_id provided"}
+
     if not HTTpx_AVAILABLE:
-        return {"title": "", "channel": "", "description": "", "error": "httpx not installed"}
+        return {"title": "", "channel": "", "thumbnail": "", "video_id": video_id, "error": "httpx not installed"}
 
     try:
         # Use YouTube oEmbed API
@@ -114,10 +338,11 @@ def get_video_info(video_id: str) -> dict:
             "title": data.get("title", ""),
             "channel": data.get("author_name", ""),
             "thumbnail": f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg",
+            "video_id": video_id,
             "error": None,
         }
     except Exception as e:
-        return {"title": "", "channel": "", "description": "", "error": str(e)}
+        return {"title": "", "channel": "", "thumbnail": "", "video_id": video_id, "error": str(e)}
 
 
 def search_youtube(query: str, limit: int = 10) -> dict:
@@ -193,7 +418,7 @@ def get_transcript_from_url(url: str, lang: str = "en") -> dict:
         lang: Language code
 
     Returns:
-        dict with keys: video_id, title, channel, transcript, error
+        dict with keys: video_id, title, channel, transcript, segments, error
     """
     video_id = extract_video_id(url)
     if not video_id:
@@ -202,13 +427,28 @@ def get_transcript_from_url(url: str, lang: str = "en") -> dict:
             "title": "",
             "channel": "",
             "transcript": "",
+            "segments": [],
             "error": "Invalid YouTube URL",
         }
 
     # Get video info
     info = get_video_info(video_id)
 
-    # Get transcript
+    # Try yt-dlp first (most reliable)
+    if YTDLP_AVAILABLE:
+        transcript_result = get_transcript_ytdlp(video_id, lang)
+        if transcript_result.get("transcript"):
+            return {
+                "video_id": video_id,
+                "title": info.get("title", ""),
+                "channel": info.get("channel", ""),
+                "thumbnail": info.get("thumbnail", ""),
+                "transcript": transcript_result.get("transcript", ""),
+                "segments": transcript_result.get("segments", []),
+                "error": None,
+            }
+
+    # Fallback to httpx methods
     transcript_result = get_transcript_captions(video_id, lang)
 
     return {
@@ -217,6 +457,7 @@ def get_transcript_from_url(url: str, lang: str = "en") -> dict:
         "channel": info.get("channel", ""),
         "thumbnail": info.get("thumbnail", ""),
         "transcript": transcript_result.get("transcript", ""),
+        "segments": [],
         "error": transcript_result.get("error") or info.get("error"),
     }
 
@@ -235,61 +476,137 @@ def get_transcript_with_timestamp(url: str) -> dict:
     if not video_id:
         return {"segments": [], "full_text": "", "error": "Invalid URL"}
 
+    # Try yt-dlp first (most reliable)
+    if YTDLP_AVAILABLE:
+        result = get_transcript_ytdlp(video_id, "en")
+        if result.get("segments"):
+            return {
+                "video_id": video_id,
+                "segments": result.get("segments", []),
+                "full_text": result.get("transcript", ""),
+                "error": None,
+            }
+
+    # Fallback to httpx methods if yt-dlp not available or failed
     if not HTTpx_AVAILABLE:
-        return {"segments": [], "full_text": "", "error": "httpx not installed"}
+        return {"segments": [], "full_text": "", "error": "httpx not installed and yt-dlp not available"}
 
+    # Try multiple Invidious instances
+    instances = [
+        "https://yewtu.be",
+        "https://invidious.privacyredirect.com",
+        "https://iv.nboeck.de",
+        "https://invidious.kavin.rocks",
+    ]
+
+    for instance in instances:
+        try:
+            with httpx.Client(timeout=30.0, follow_redirects=True) as client:
+                # Get video data with captions
+                response = client.get(
+                    f"{instance}/api/v1/videos/{video_id}",
+                    params={"format": "json"},
+                    headers={"User-Agent": "Mozilla/5.0"},
+                )
+
+                if response.status_code == 200:
+                    data = response.json()
+
+                    # Check for captions/subtitles
+                    captions = data.get("captions", [])
+                    subtitles = data.get("subtitles", [])
+
+                    all_captions = captions + subtitles
+
+                    if all_captions:
+                        segments = []
+                        full_text_parts = []
+
+                        for caption in all_captions:
+                            start = float(caption.get("start", 0))
+                            duration = float(caption.get("dur", caption.get("duration", 3)))
+                            text = caption.get("text", "")
+
+                            if text.strip():
+                                segments.append({
+                                    "start": start,
+                                    "duration": duration,
+                                    "end": start + duration,
+                                    "text": text.strip(),
+                                    "timestamp": format_timestamp(start),
+                                })
+                                full_text_parts.append(text.strip())
+
+                        if segments:
+                            return {
+                                "video_id": video_id,
+                                "segments": segments,
+                                "full_text": " ".join(full_text_parts),
+                                "error": None,
+                            }
+
+        except Exception:
+            continue
+
+    # Fallback: Try YouTube's direct caption API
     try:
-        # Use Invidious API for timed transcripts
         with httpx.Client(timeout=30.0) as client:
-            # Try to get captions with timestamps
-            response = client.get(
-                f"https://yewtu.be/api/v1/videos/{video_id}",
-                params={"format": "json"},
-            )
+            # Try to get auto-generated captions
+            for lang_code in ["en", "en-US", "en-GB"]:
+                response = client.get(
+                    f"https://video.google.com/timedtext?type=list&v={video_id}",
+                    headers={"User-Agent": "Mozilla/5.0"},
+                )
+                if response.status_code == 200 and response.text:
+                    # Parse available caption tracks
+                    import xml.etree.ElementTree as ET
+                    try:
+                        root = ET.fromstring(response.text)
+                        for track in root.findall(".//track"):
+                            track_lang = track.get("lang_code", "")
+                            if track_lang.startswith("en"):
+                                name = track.get("name", "")
+                                # Get timed text
+                                timed_response = client.get(
+                                    f"https://video.google.com/timedtext?v={video_id}&lang={track_lang}&name={name}"
+                                )
+                                if timed_response.status_code == 200:
+                                    text_content = parse_ttml_transcript(timed_response.text)
+                                    if text_content:
+                                        return {
+                                            "video_id": video_id,
+                                            "segments": [],
+                                            "full_text": text_content,
+                                            "error": None,
+                                        }
+                    except Exception:
+                        pass
+    except Exception:
+        pass
 
-            if response.status_code == 200:
-                data = response.json()
+    return {
+        "video_id": video_id,
+        "segments": [],
+        "full_text": "",
+        "error": "No captions available - video may not have auto-generated captions enabled"
+    }
 
-                # Check for captions/subtitles
-                captions = data.get("captions", [])
 
-                if captions:
-                    # Process timed captions
-                    segments = []
-                    full_text_parts = []
-
-                    for caption in captions:
-                        start = caption.get("start", 0)
-                        duration = caption.get("dur", 0)
-                        text = caption.get("text", "")
-
-                        segments.append({
-                            "start": start,
-                            "duration": duration,
-                            "end": start + duration,
-                            "text": text,
-                            "timestamp": format_timestamp(start),
-                        })
-                        full_text_parts.append(text)
-
-                    return {
-                        "video_id": video_id,
-                        "segments": segments,
-                        "full_text": " ".join(full_text_parts),
-                        "error": None,
-                    }
-
-                return {
-                    "video_id": video_id,
-                    "segments": [],
-                    "full_text": "",
-                    "error": "No captions available for this video",
-                }
-
-        return {"segments": [], "full_text": "", "error": "Failed to fetch video data"}
-
-    except Exception as e:
-        return {"segments": [], "full_text": "", "error": str(e)}
+def parse_ttml_transcript(xml_content: str) -> str:
+    """Parse TTML/XML transcript to plain text."""
+    try:
+        import xml.etree.ElementTree as ET
+        root = ET.fromstring(xml_content)
+        text_parts = []
+        for p in root.iter():
+            if p.text:
+                text_parts.append(p.text.strip())
+            for child in p:
+                if child.tail:
+                    text_parts.append(child.tail.strip())
+        return " ".join(t for t in text_parts if t)
+    except Exception:
+        return ""
 
 
 def format_timestamp(seconds: float) -> str:

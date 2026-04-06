@@ -474,13 +474,13 @@ YOUTUBE_TRIMMED_TOOLS = [
     },
     {
         "name": "youtube_video_info",
-        "description": "Get video metadata.",
+        "description": "Get video metadata (title, channel, thumbnail).",
         "inputSchema": {
             "type": "object",
             "properties": {
-                "url": {"type": "string", "description": "Video URL"},
+                "video_id": {"type": "string", "description": "YouTube video ID (11 chars)"},
+                "url": {"type": "string", "description": "Video URL (alternative to video_id)"},
             },
-            "required": ["url"],
         },
     },
     {
