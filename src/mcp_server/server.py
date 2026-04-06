@@ -224,17 +224,17 @@ class MCPServer:
     def __init__(self):
         self.writer = None
 
-    def send_response(self, response: dict, writer=None) -> None:
+    async def send_response(self, response: dict, writer=None) -> None:
         """Send a JSON-RPC response."""
         msg = json.dumps(response) + "\n"
         if writer:
             writer.write(msg.encode())
-            writer.drain()
+            await writer.drain()
         else:
             sys.stdout.write(msg)
             sys.stdout.flush()
 
-    def send_notification(self, method: str, params: dict | None = None, writer=None) -> None:
+    async def send_notification(self, method: str, params: dict | None = None, writer=None) -> None:
         """Send a JSON-RPC notification (no id)."""
         msg: dict[str, Any] = {"jsonrpc": "2.0", "method": method}
         if params:
@@ -242,7 +242,7 @@ class MCPServer:
         msg_str = json.dumps(msg) + "\n"
         if writer:
             writer.write(msg_str.encode())
-            writer.drain()
+            await writer.drain()
         else:
             sys.stdout.write(msg_str)
             sys.stdout.flush()
@@ -298,16 +298,16 @@ class MCPServer:
                 "isError": True,
             }
 
-    def handle_request(self, method: str, params: dict, msg_id: int | str | None, writer=None) -> None:
+    async def handle_request(self, method: str, params: dict, msg_id: int | str | None, writer=None) -> None:
         """Route a JSON-RPC request."""
         if method == "initialize":
             result = self.handle_initialize(params)
-            self.send_response({
+            await self.send_response({
                 "jsonrpc": "2.0",
                 "id": msg_id,
                 "result": result,
             }, writer)
-            self.send_notification("notifications/initialized", {}, writer)
+            await self.send_notification("notifications/initialized", {}, writer)
             return
 
         handler = {
@@ -316,7 +316,7 @@ class MCPServer:
         }.get(method)
 
         if handler is None:
-            self.send_response({
+            await self.send_response({
                 "jsonrpc": "2.0",
                 "id": msg_id,
                 "error": {"code": -32601, "message": f"Method not found: {method}"},
@@ -325,14 +325,14 @@ class MCPServer:
 
         try:
             result = handler(params)
-            self.send_response({
+            await self.send_response({
                 "jsonrpc": "2.0",
                 "id": msg_id,
                 "result": result,
             }, writer)
         except Exception as e:
             log.exception("Handler for '%s' raised an exception", method)
-            self.send_response({
+            await self.send_response({
                 "jsonrpc": "2.0",
                 "id": msg_id,
                 "error": {"code": -32603, "message": str(e)},
@@ -359,7 +359,7 @@ class MCPServer:
                     continue
 
                 if msg.get("method") in ("initialize", "tools/list", "tools/call"):
-                    self.handle_request(
+                    await self.handle_request(
                         method=msg["method"],
                         params=msg.get("params", {}),
                         msg_id=msg.get("id"),

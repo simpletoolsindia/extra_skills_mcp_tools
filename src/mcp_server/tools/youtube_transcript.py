@@ -347,7 +347,12 @@ def get_video_info(video_id: str = None, url: str = None) -> dict:
 
 def search_youtube(query: str, limit: int = 10) -> dict:
     """
-    Search YouTube videos.
+    Search YouTube videos (bypasses API rate limits).
+
+    Tries multiple methods in order:
+    1. RSS feed (fastest, no rate limits)
+    2. Playwright (most accurate, slower)
+    3. Invidious instances (fallback)
 
     Args:
         query: Search query
@@ -356,22 +361,33 @@ def search_youtube(query: str, limit: int = 10) -> dict:
     Returns:
         dict with keys: videos (list), error
     """
+    # Method 1: Try RSS feed (fast, no rate limits)
+    rss_result = search_youtube_rss(query, limit)
+    if rss_result.get("videos"):
+        return rss_result
+
+    # Method 2: Try Playwright-based search (bypasses rate limits)
+    playwright_result = search_youtube_playwright(query, limit)
+    if playwright_result.get("videos"):
+        return playwright_result
+
+    # Method 3: Fallback to Invidious
     if not HTTpx_AVAILABLE:
-        return {"videos": [], "error": "httpx not installed"}
+        return {"videos": [], "error": "All search methods failed (httpx not installed, Playwright failed)"}
 
     try:
         with httpx.Client(timeout=30.0, follow_redirects=True) as client:
-            # Use YouTube search (requires proper headers for some endpoints)
             headers = {
                 "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
                 "Accept": "application/json",
             }
 
-            # Use Invidious instance for search (no API key required)
+            # Try multiple Invidious instances
             invidious_instances = [
                 "https://yewtu.be",
                 "https://invidious.privacyredirect.com",
                 "https://iv.nboeck.de",
+                "https://invidious.kavin.rocks",
             ]
 
             for instance in invidious_instances:
@@ -403,10 +419,185 @@ def search_youtube(query: str, limit: int = 10) -> dict:
                 except Exception:
                     continue
 
-            return {"videos": [], "error": "All search instances unavailable"}
+            return {"videos": [], "error": "All search methods unavailable"}
 
     except Exception as e:
         return {"videos": [], "error": str(e)}
+
+
+def search_youtube_playwright(query: str, limit: int = 10) -> dict:
+    """
+    Search YouTube videos using local Playwright (bypasses API rate limits).
+
+    Args:
+        query: Search query
+        limit: Max results
+
+    Returns:
+        dict with keys: videos (list), error
+    """
+    try:
+        from playwright.sync_api import sync_playwright
+    except ImportError:
+        return {"videos": [], "error": "Playwright not installed"}
+
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            page = browser.new_page()
+
+            # Navigate to YouTube search
+            search_url = f"https://www.youtube.com/results?search_query={query.replace(' ', '+')}"
+            page.goto(search_url, wait_until="networkidle", timeout=45000)
+
+            # Wait for video results to load
+            try:
+                page.wait_for_selector("ytd-video-renderer", timeout=15000)
+            except Exception:
+                browser.close()
+                return {"videos": [], "error": "No search results found"}
+
+            videos = []
+            items = page.query_selector_all("ytd-video-renderer")
+
+            for item in items[:limit]:
+                try:
+                    # Get title
+                    title_el = item.query_selector("yt-formatted-string")
+                    title = title_el.inner_text().strip() if title_el else ""
+
+                    # Get video ID and URL
+                    link_el = item.query_selector("a#video-title")
+                    href = link_el.get_attribute("href") if link_el else ""
+                    video_id = ""
+                    if href:
+                        import re
+                        match = re.search(r"[?&]v=([^&]+)", href)
+                        if match:
+                            video_id = match.group(1)
+
+                    # Get channel name
+                    channel_el = item.query_selector("#channel-name a")
+                    channel = channel_el.inner_text().strip() if channel_el else ""
+
+                    # Get metadata (views, time ago)
+                    metadata_els = item.query_selector_all("#metadata-line span")
+                    metadata = [el.inner_text() for el in metadata_els] if metadata_els else []
+
+                    # Get duration (if visible)
+                    duration_el = item.query_selector("#time")
+                    duration = duration_el.inner_text().strip() if duration_el else ""
+
+                    if video_id and title:
+                        videos.append({
+                            "videoId": video_id,
+                            "title": title,
+                            "author": channel,
+                            "url": f"https://youtube.com/watch?v={video_id}",
+                            "description": "",
+                            "duration": duration,
+                            "viewCount": metadata[0] if metadata else "",
+                            "publishedText": metadata[1] if len(metadata) > 1 else "",
+                        })
+
+                except Exception:
+                    continue
+
+            browser.close()
+            return {"videos": videos, "error": None if videos else "No videos extracted"}
+
+    except Exception as e:
+        return {"videos": [], "error": f"Playwright error: {str(e)}"}
+
+
+def search_youtube_rss(query: str, limit: int = 10) -> dict:
+    """
+    Search YouTube via RSS feed (no API required, bypasses rate limits).
+
+    Args:
+        query: Search query
+        limit: Max results
+
+    Returns:
+        dict with keys: videos (list), error
+    """
+    if not HTTpx_AVAILABLE:
+        return {"videos": [], "error": "httpx not available"}
+
+    try:
+        import httpx
+        import xml.etree.ElementTree as ET
+
+        # YouTube search via RSS
+        search_url = f"https://www.youtube.com/feeds/videos.xml?search_query={query}&max_results={limit}"
+
+        with httpx.Client(timeout=30.0, follow_redirects=True) as client:
+            response = client.get(search_url, headers={"User-Agent": "Mozilla/5.0"})
+
+            if response.status_code != 200:
+                return {"videos": [], "error": f"RSS failed: {response.status_code}"}
+
+            # Parse RSS/Atom feed
+            root = ET.fromstring(response.text)
+
+            # Handle Atom namespace
+            ns = {'atom': 'http://www.w3.org/2005/Atom', 'yt': 'http://www.youtube.com/xml/schemas/2015'}
+
+            videos = []
+            for entry in root.findall('.//atom:entry', ns) or root.findall('.//entry'):
+                try:
+                    video_id = ""
+                    # Try to get video ID from various locations
+                    for link in entry.findall('.//atom:link', ns) or entry.findall('.//link'):
+                        href = link.get('href', '')
+                        if '/watch?v=' in href:
+                            match = re.search(r'v=([^&]+)', href)
+                            if match:
+                                video_id = match.group(1)
+                                break
+
+                    title = ""
+                    for t in entry.findall('.//atom:title', ns) or entry.findall('.//title'):
+                        if t.text:
+                            title = t.text.strip()
+                            break
+
+                    author = ""
+                    for author_el in entry.findall('.//atom:name', ns) or entry.findall('.//author/name') or entry.findall('.//author'):
+                        if author_el.text:
+                            author = author_el.text.strip()
+                            break
+
+                    published = ""
+                    for pub in entry.findall('.//atom:published', ns) or entry.findall('.//published'):
+                        if pub.text:
+                            published = pub.text
+                            break
+
+                    if video_id:
+                        videos.append({
+                            "videoId": video_id,
+                            "title": title,
+                            "author": author,
+                            "url": f"https://youtube.com/watch?v={video_id}",
+                            "description": "",
+                            "duration": "",
+                            "viewCount": "",
+                            "publishedText": published[:10] if published else "",
+                        })
+
+                    if len(videos) >= limit:
+                        break
+
+                except Exception:
+                    continue
+
+            if videos:
+                return {"videos": videos, "error": None}
+            return {"videos": [], "error": "No videos found in RSS feed"}
+
+    except Exception as e:
+        return {"videos": [], "error": f"RSS search error: {str(e)}"}
 
 
 def get_transcript_from_url(url: str, lang: str = "en") -> dict:
