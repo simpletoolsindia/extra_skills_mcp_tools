@@ -176,6 +176,11 @@ services:
     command: redis-server --appendonly yes
     networks:
       - local-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # ============================================
   # CHROMADB - Vector Database for RAG
